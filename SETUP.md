@@ -3,9 +3,16 @@
 Clone or copy this repository to `~/.pi/agent`, then install its dependencies:
 
 ```sh
+git clone git@github.com:aurokin/pi-setup.git ~/.pi/agent
 cd ~/.pi/agent
 npm install
+npm run install:extensions
 ```
+
+Both installs are required. Every directory under `extensions/` is its own npm
+package with its own lockfile, so the root `npm install` does not cover them —
+skipping the second command leaves `effect` and the Claude Agent SDK missing and
+`npm run check` fails.
 
 ## Firecrawl
 

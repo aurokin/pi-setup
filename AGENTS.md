@@ -1,14 +1,46 @@
-When working in typescript:
+# AGENTS.md
 
-- when adding a package to a project add it with an install command, instead of manually editing the package json
-- run check/format/lint commands when your done making a change. if they don't exist, suggest making them for the project you're in
-- avoid explicit return types unless absolutely needed
-- `as any` should be an absolute last resort. always use real type safety. lean on type inference instead of manually writing new types over and over again
+This repo is a pi coding-agent configuration. It is cloned to `~/.pi/agent`, and
+pi loads `extensions/`, `skills/`, and `themes/` from there at startup.
 
-When working in svelte(kit):
+## Layout
 
-- use modern svelte practices, reference the svelte best practicies skill when writing .svelte file code
+- `extensions/<name>/` — one pi extension per directory, each its own npm package
+  with its own `package.json` and lockfile. `index.ts` is the entry point; larger
+  extensions keep implementation in `src/` and colocate `*.test.ts` at the root.
+- `extensions/shared/` — cross-extension helpers. No package.json; imported by
+  relative path.
+- `skills/<name>/SKILL.md` — model-facing docs loaded on demand.
 
-In general:
+## Commands
 
-- when asking questions, ask them one at a time
+```sh
+npm install && npm run install:extensions   # both are required
+npm run check                               # tsc --noEmit across the repo
+npm test                                    # node:test + file-search vitest
+npm run format                              # prettier
+```
+
+Run `check` and `format` before finishing a change.
+
+## Toolchain
+
+- Node's native type stripping (`node --test --experimental-strip-types`). Use
+  `.ts` extensions in relative imports — that is required, not a style choice.
+- TypeScript 7, Effect v4 (beta). Effect APIs move between betas; check the
+  installed version before trusting an example.
+- Add packages with an install command rather than editing `package.json` by hand,
+  and install into the extension directory that needs them, not the root.
+
+## Style
+
+- Avoid explicit return types unless needed; lean on inference.
+- `as any` is a last resort. Prefer real type safety over restating types.
+- Match the surrounding extension's structure and comment density. Upstream code
+  documents *why* at the top of each module — keep that habit.
+
+## Upstream
+
+Forked from `davis7dotsh/my-pi-setup`. `upstream` is fetch-only. Keep our
+additions separable from inherited code so merges stay cheap; when changing an
+inherited file, prefer the smallest edit that works over a restructure.

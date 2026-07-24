@@ -1,4 +1,6 @@
 {
+  "name": "pi-setup",
+  "private": true,
   "dependencies": {
     "@earendil-works/pi-ai": "^0.82.0",
     "@earendil-works/pi-coding-agent": "^0.82.0",
@@ -15,6 +17,7 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
+    "install:extensions": "for d in extensions/*/; do if [ -f \"$d/package.json\" ]; then npm install --prefix \"$d\" || exit 1; fi; done",
     "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"*.json\"",
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"*.json\"",
     "test": "node --test --experimental-strip-types extensions/*/*.test.ts && npm --prefix extensions/file-search test"
