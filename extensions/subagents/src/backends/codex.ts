@@ -25,6 +25,7 @@ import type {
 } from "../domain.ts";
 import { SendError, SpawnError } from "../domain.ts";
 import { buildRolePrompt, roleProfile } from "../../../shared/roles.ts";
+import { childEnv } from "../child-env.ts";
 import { toolPolicy } from "../tool-policy.ts";
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -324,7 +325,7 @@ const makeCodexSession = (
       try: () =>
         spawn(binary, ["app-server", "--stdio"], {
           cwd: task.cwd,
-          env: process.env,
+          env: childEnv(),
           stdio: ["pipe", "pipe", "pipe"],
           windowsHide: true,
           // Own process group on POSIX so teardown can signal the whole

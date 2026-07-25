@@ -34,6 +34,7 @@ import type {
 } from "../domain.ts";
 import { SendError, SpawnError } from "../domain.ts";
 import { buildRolePrompt, roleProfile } from "../../../shared/roles.ts";
+import { childEnv } from "../child-env.ts";
 import { toolPolicy } from "../tool-policy.ts";
 
 const CLAUDE_CONTEXT_WINDOW = 200_000;
@@ -348,6 +349,9 @@ const makeClaudeSession = (
               ? {}
               : { settingSources: ["user" as const] }),
             includePartialMessages: true,
+            // The SDK spawns the Claude CLI, which would otherwise inherit
+            // every secret the parent holds for its own tools.
+            env: childEnv() as Record<string, string>,
             abortController,
             ...(claudeBinary
               ? { pathToClaudeCodeExecutable: claudeBinary }
