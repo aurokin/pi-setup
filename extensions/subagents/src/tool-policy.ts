@@ -76,7 +76,25 @@ export interface BackendToolPolicy {
   readonly codexSandbox: "read-only" | "danger-full-access";
 }
 
-export function toolPolicy(writeCapable: boolean): BackendToolPolicy {
+/**
+ * The parent's surface, untouched.
+ *
+ * Only the `side` role takes this, and only to keep the cached prefix
+ * identical to the parent's — see the role's comment. It is restricted by
+ * instruction instead, which is a real downgrade in guarantee: nothing here
+ * stops a side child from writing except the prompt telling it not to.
+ */
+const UNRESTRICTED: BackendToolPolicy = {
+  piExcludeTools: [],
+  claudeDisallowedTools: [],
+  codexSandbox: "danger-full-access",
+};
+
+export function toolPolicy(
+  writeCapable: boolean,
+  inheritsParentTools = false,
+): BackendToolPolicy {
+  if (inheritsParentTools) return UNRESTRICTED;
   if (writeCapable) {
     return {
       piExcludeTools: [...PI_ALWAYS_EXCLUDED],

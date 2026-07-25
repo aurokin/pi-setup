@@ -897,7 +897,8 @@ const makeCodexSession = (
         return request("thread/start", {
           cwd: task.cwd,
           approvalPolicy: "never",
-          sandbox: toolPolicy(role.writeCapable).codexSandbox,
+          sandbox: toolPolicy(role.writeCapable, role.inheritsParentTools)
+            .codexSandbox,
           ephemeral: false,
           ...(task.model ? { model: task.model } : {}),
         });

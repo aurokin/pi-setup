@@ -303,7 +303,10 @@ const makePiSession = (
           resourceLoader: loader,
           model,
           thinkingLevel,
-          excludeTools: [...toolPolicy(role.writeCapable).piExcludeTools],
+          excludeTools: [
+            ...toolPolicy(role.writeCapable, role.inheritsParentTools)
+              .piExcludeTools,
+          ],
         });
         // Start child extension session hooks/resources in headless mode.
         // A rejection here would otherwise leak the freshly created session:

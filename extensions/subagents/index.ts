@@ -708,9 +708,12 @@ export default function (pi: ExtensionAPI) {
         manager.spawn("pi", {
           origin: "btw",
           prompt,
-          // A side question asked while the main agent works. It answers; it
-          // does not edit the tree out from under the session you are in.
-          role: "reader",
+          // A side question asked while the main agent works. `side` keeps the
+          // parent's exact tool surface so the forked history is read from
+          // cache rather than re-billed, and restricts by instruction instead
+          // — the one place in this extension where the prompt is the only
+          // thing standing between a child and your working tree.
+          role: "side",
           title: deriveBtwTitle(prompt),
           cwd: ctx.cwd,
           // A fork, not a fresh subagent: the point of asking here rather than

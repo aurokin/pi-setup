@@ -25,11 +25,20 @@ test("lookup is case-insensitive and rejects unknown names", () => {
   assert.equal(getRoleProfile("planner"), undefined);
 });
 
-test("exactly one role can mutate anything", () => {
+test("only worker and side can mutate anything", () => {
   const writers = [...ROLE_PROFILES.values()].filter((r) => r.writeCapable);
+  assert.deepEqual(writers.map((r) => r.name).sort(), ["side", "worker"]);
+});
+
+test("side is the only role whose limits exist solely in the prompt", () => {
+  // worker is write-capable by design and still loses orchestration tools;
+  // side loses nothing, so its prompt is the entire restriction.
+  const inheriting = [...ROLE_PROFILES.values()].filter(
+    (r) => r.inheritsParentTools,
+  );
   assert.deepEqual(
-    writers.map((r) => r.name),
-    ["worker"],
+    inheriting.map((r) => r.name),
+    ["side"],
   );
 });
 

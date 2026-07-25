@@ -341,7 +341,8 @@ const makeClaudeSession = (
             // role. `bypassPermissions` above means this list is the only
             // thing standing between such a child and the filesystem.
             disallowedTools: [
-              ...toolPolicy(role.writeCapable).claudeDisallowedTools,
+              ...toolPolicy(role.writeCapable, role.inheritsParentTools)
+                .claudeDisallowedTools,
             ],
             // For cwds pi marked untrusted, restrict to user-level settings so
             // an untrusted project's config cannot reconfigure the child.
