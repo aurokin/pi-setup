@@ -37,12 +37,17 @@ import {
   getAgentDir,
   getMarkdownTheme,
   ProjectTrustStore,
+  sessionEntryToContextMessages,
   truncateHead,
 } from "@earendil-works/pi-coding-agent";
 import { Markdown, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { ROLE_NAMES, roleProfile } from "../shared/roles.ts";
-import { deriveBtwTitle, isModelVisible } from "./src/by-the-way.ts";
+import {
+  deriveBtwTitle,
+  forkableMessages,
+  isModelVisible,
+} from "./src/by-the-way.ts";
 import { registerPrimaryRuntime } from "./src/primary/index.ts";
 import {
   BACKEND_NAMES,
@@ -718,7 +723,14 @@ export default function (pi: ExtensionAPI) {
           cwd: ctx.cwd,
           // A fork, not a fresh subagent: the point of asking here rather than
           // in a new session is that it already knows what you were doing.
-          forkFromSessionFile: ctx.sessionManager.getSessionFile(),
+          // Taken from memory, not the session file, so a question asked
+          // mid-turn forks the conversation as it stands rather than as it was
+          // last written out.
+          forkFromMessages: forkableMessages(
+            ctx.sessionManager
+              .buildContextEntries()
+              .flatMap((entry) => sessionEntryToContextMessages(entry)),
+          ),
           parent: {
             parentCwd: ctx.cwd,
             projectTrusted: ctx.isProjectTrusted(),

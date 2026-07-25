@@ -251,22 +251,22 @@ function boundedError(error: unknown) {
 }
 
 /**
- * The child's session: a fork of the parent's history when the caller asked
- * for one, otherwise a fresh session.
+ * The child's session: its own file, seeded with whatever history the caller
+ * handed over.
  *
- * A missing or unreadable source file degrades to a fresh session rather than
- * failing the spawn. The caller wanted a subagent; a blind one still answers,
- * and an unpersisted parent session (`getSessionFile()` undefined) is a normal
- * state, not an error.
+ * Nothing is caught here. An earlier version forked the parent's session file
+ * and fell back to a fresh session on any failure, which turned "the fork did
+ * not happen" into a silent condition — and a `side` child that silently loses
+ * its history keeps the parent's full tool surface while no longer knowing
+ * what any of it is for. A failed spawn is the better outcome, and with the
+ * messages already in hand there is little left that can fail.
  */
 function childSessionManager(task: SpawnTask): SessionManager {
-  const source = task.forkFromSessionFile;
-  if (!source) return SessionManager.create(task.cwd);
-  try {
-    return SessionManager.forkFrom(source, task.cwd);
-  } catch {
-    return SessionManager.create(task.cwd);
+  const manager = SessionManager.create(task.cwd);
+  for (const message of task.forkFromMessages ?? []) {
+    manager.appendMessage(message);
   }
+  return manager;
 }
 
 const makePiSession = (

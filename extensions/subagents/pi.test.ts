@@ -209,15 +209,6 @@ test(
       t.skip(UNAVAILABLE);
       return;
     }
-    const source = SessionManager.create(process.cwd());
-    source.appendMessage({
-      role: "user",
-      content: "Remember this: my deployment target is codename nightjar.",
-      timestamp: 0,
-    });
-    const sessionFile = source.getSessionFile();
-    assert.ok(sessionFile, "source session was not persisted");
-
     const runtime = createSubagentRuntime();
     try {
       const manager = await runtime.runPromise(SubagentManager);
@@ -228,7 +219,14 @@ test(
             parent,
             "What is my deployment target codename? Reply with just the codename.",
           ),
-          forkFromSessionFile: sessionFile,
+          forkFromMessages: [
+            {
+              role: "user",
+              content:
+                "Remember this: my deployment target is codename nightjar.",
+              timestamp: 0,
+            },
+          ],
         }),
       );
       await deadline(runTool(runtime, manager.waitFor([started.id])), 90_000);
@@ -243,7 +241,7 @@ test(
 );
 
 test(
-  "an unreadable fork source degrades to a fresh child, not a failed spawn",
+  "an empty fork list is the same as not forking",
   { timeout: 120_000 },
   async (t) => {
     const parent = await parentContext();
@@ -258,13 +256,12 @@ test(
         runtime,
         manager.spawn("pi", {
           ...task(parent, "Reply with exactly: hello pi"),
-          forkFromSessionFile: "/nonexistent/session.jsonl",
+          forkFromMessages: [],
         }),
       );
       await deadline(runTool(runtime, manager.waitFor([started.id])), 90_000);
 
-      // The caller wanted a subagent. A blind one still answers; refusing to
-      // spawn would take /btw down whenever the parent session is unwritable.
+      // A parent with nothing to hand over is a normal state, not a failure.
       const done = manager.view.get(started.id);
       assert.equal(done?.status, "done", done?.errorText ?? "");
       assert.match(done?.finalText ?? "", /hello pi/i);

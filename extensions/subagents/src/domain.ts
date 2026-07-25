@@ -7,9 +7,15 @@
  * normalized `SubagentEvent` union.
  */
 
-import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
+import type {
+  ModelRegistry,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
 import { Data } from "effect";
 import type { RoleName } from "../../shared/roles.ts";
+
+/** Whatever a pi session accepts as a message, without restating its union. */
+export type ForkedMessage = Parameters<SessionManager["appendMessage"]>[0];
 
 export const BACKEND_NAMES = ["pi", "claude", "codex"] as const;
 export type BackendName = (typeof BACKEND_NAMES)[number];
@@ -73,14 +79,21 @@ export interface SpawnTask {
   /** Shared effort scale; each backend maps it to its native equivalent. */
   readonly reasoningEffort?: ReasoningEffort;
   /**
-   * Path to a pi session file whose history the child should start from, so it
-   * opens knowing what the parent was working on instead of blind.
+   * The parent conversation, copied into the child at spawn so it opens
+   * knowing what the parent was working on instead of blind.
    *
-   * pi-only: it forks a real session file, which Claude and Codex have no
-   * equivalent of. The other backends ignore it rather than erroring, because
-   * a caller that wants a fork and gets a fresh child is degraded, not broken.
+   * Messages rather than a session file path on purpose. Reading the parent's
+   * file meant reading a copy that lags the live conversation, and the moment
+   * it lags most is a side question asked mid-turn — precisely when this is
+   * used. Handing over what the parent has in memory has no such window, and
+   * `buildContextEntries()` gives the compaction-aware view rather than the
+   * raw history.
+   *
+   * pi-only: Claude and Codex have no equivalent to seed. They ignore it
+   * rather than erroring, because a caller that wanted a fork and got a fresh
+   * child is degraded, not broken.
    */
-  readonly forkFromSessionFile?: string;
+  readonly forkFromMessages?: readonly ForkedMessage[];
   readonly parent: ParentContext;
 }
 
