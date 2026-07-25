@@ -18,6 +18,7 @@ import test from "node:test";
 import {
   ModelRegistry,
   ModelRuntime,
+  SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type { RoleName } from "../shared/roles.ts";
 import type { ParentContext, SpawnTask } from "./src/domain.ts";
@@ -170,6 +171,72 @@ test(
         );
       }
       assert.match(listed, /read/);
+    } finally {
+      await runtime.dispose();
+    }
+  },
+);
+
+test(
+  "a forked child starts from the parent session's history",
+  { timeout: 120_000 },
+  async () => {
+    const source = SessionManager.create(process.cwd());
+    source.appendMessage({
+      role: "user",
+      content: "Remember this: my deployment target is codename nightjar.",
+      timestamp: 0,
+    });
+    const sessionFile = source.getSessionFile();
+    assert.ok(sessionFile, "source session was not persisted");
+
+    const runtime = createSubagentRuntime();
+    try {
+      const parent = await parentContext();
+      const manager = await runtime.runPromise(SubagentManager);
+      const started = await runTool(
+        runtime,
+        manager.spawn("pi", {
+          ...task(
+            parent,
+            "What is my deployment target codename? Reply with just the codename.",
+          ),
+          forkFromSessionFile: sessionFile,
+        }),
+      );
+      await deadline(runTool(runtime, manager.waitFor([started.id])), 90_000);
+
+      const done = manager.view.get(started.id);
+      assert.equal(done?.status, "done", done?.errorText ?? "");
+      assert.match(done?.finalText ?? "", /nightjar/i);
+    } finally {
+      await runtime.dispose();
+    }
+  },
+);
+
+test(
+  "an unreadable fork source degrades to a fresh child, not a failed spawn",
+  { timeout: 120_000 },
+  async () => {
+    const runtime = createSubagentRuntime();
+    try {
+      const parent = await parentContext();
+      const manager = await runtime.runPromise(SubagentManager);
+      const started = await runTool(
+        runtime,
+        manager.spawn("pi", {
+          ...task(parent, "Reply with exactly: hello pi"),
+          forkFromSessionFile: "/nonexistent/session.jsonl",
+        }),
+      );
+      await deadline(runTool(runtime, manager.waitFor([started.id])), 90_000);
+
+      // The caller wanted a subagent. A blind one still answers; refusing to
+      // spawn would take /btw down whenever the parent session is unwritable.
+      const done = manager.view.get(started.id);
+      assert.equal(done?.status, "done", done?.errorText ?? "");
+      assert.match(done?.finalText ?? "", /hello pi/i);
     } finally {
       await runtime.dispose();
     }

@@ -713,6 +713,9 @@ export default function (pi: ExtensionAPI) {
           role: "reader",
           title: deriveBtwTitle(prompt),
           cwd: ctx.cwd,
+          // A fork, not a fresh subagent: the point of asking here rather than
+          // in a new session is that it already knows what you were doing.
+          forkFromSessionFile: ctx.sessionManager.getSessionFile(),
           parent: {
             parentCwd: ctx.cwd,
             projectTrusted: ctx.isProjectTrusted(),

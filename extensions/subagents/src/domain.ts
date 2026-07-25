@@ -72,6 +72,15 @@ export interface SpawnTask {
   readonly model?: string;
   /** Shared effort scale; each backend maps it to its native equivalent. */
   readonly reasoningEffort?: ReasoningEffort;
+  /**
+   * Path to a pi session file whose history the child should start from, so it
+   * opens knowing what the parent was working on instead of blind.
+   *
+   * pi-only: it forks a real session file, which Claude and Codex have no
+   * equivalent of. The other backends ignore it rather than erroring, because
+   * a caller that wants a fork and gets a fresh child is degraded, not broken.
+   */
+  readonly forkFromSessionFile?: string;
   readonly parent: ParentContext;
 }
 

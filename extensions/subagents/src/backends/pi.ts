@@ -250,6 +250,25 @@ function boundedError(error: unknown) {
   );
 }
 
+/**
+ * The child's session: a fork of the parent's history when the caller asked
+ * for one, otherwise a fresh session.
+ *
+ * A missing or unreadable source file degrades to a fresh session rather than
+ * failing the spawn. The caller wanted a subagent; a blind one still answers,
+ * and an unpersisted parent session (`getSessionFile()` undefined) is a normal
+ * state, not an error.
+ */
+function childSessionManager(task: SpawnTask): SessionManager {
+  const source = task.forkFromSessionFile;
+  if (!source) return SessionManager.create(task.cwd);
+  try {
+    return SessionManager.forkFrom(source, task.cwd);
+  } catch {
+    return SessionManager.create(task.cwd);
+  }
+}
+
 const makePiSession = (
   task: SpawnTask,
 ): Effect.Effect<SubagentSession, SpawnError, Scope.Scope> =>
@@ -279,7 +298,7 @@ const makePiSession = (
         );
         const { session } = await createAgentSession({
           cwd: task.cwd,
-          sessionManager: SessionManager.create(task.cwd),
+          sessionManager: childSessionManager(task),
           settingsManager,
           resourceLoader: loader,
           model,
