@@ -18,12 +18,12 @@ export const SEARCH_PARAMETER_DESCRIPTIONS = {
   query: "The web search query.",
   limit: "Maximum number of results. Defaults to 5.",
   scrapeResults:
-    "Whether to include markdown scraped from each result. Defaults to false.",
+    "Whether to include markdown scraped from each result. Defaults to false. This adds 1 Firecrawl credit per result on top of the search itself, so a 20-result search with this enabled costs about as much as a 20-page crawl. Prefer scraping the one or two results you actually need.",
 };
 
 /** Describes multi-page Firecrawl crawling and its page and output limits. */
 export const CRAWL_TOOL_DESCRIPTION =
-  "Crawl multiple pages of a website with Firecrawl and return markdown documents. Defaults to 20 pages and never accepts a limit above 100. Output is limited to 50KB or 2000 lines; complete truncated output is saved to a temporary file.";
+  "Crawl multiple pages of a website with Firecrawl and return markdown documents. Costs 1 Firecrawl credit per page crawled, making this by far the most expensive tool here. Defaults to 5 pages and never accepts a limit above 25. Output is limited to 50KB or 2000 lines; complete truncated output is saved to a temporary file.";
 
 /** Adds Firecrawl's multi-page crawl capability to the model's tool prompt. */
 export const CRAWL_PROMPT_SNIPPET =
@@ -32,14 +32,15 @@ export const CRAWL_PROMPT_SNIPPET =
 /** Guides the model to use focused crawl limits and prefer scrape for one URL. */
 export const CRAWL_PROMPT_GUIDELINES = [
   "Use crawl when the user needs content from multiple related pages on one website.",
-  "Keep crawl limits as low as practical because each crawled page consumes Firecrawl credits.",
+  "Set limit to the number of pages you actually need. Each page is 1 credit, and the monthly allowance is a few thousand, so a single wide crawl can spend a noticeable share of it.",
   "Use scrape instead of crawl when only one known URL is needed.",
 ];
 
 /** Model-facing schema descriptions for Firecrawl crawl parameters. */
 export const CRAWL_PARAMETER_DESCRIPTIONS = {
   url: "The starting URL to crawl.",
-  limit: "Maximum pages to crawl. Defaults to 20; maximum 100.",
+  limit:
+    "Maximum pages to crawl, at 1 Firecrawl credit each. Defaults to 5; maximum 25. Raise it only when you know the extra pages are needed.",
   maxDiscoveryDepth: "Maximum link-discovery depth from the starting URL.",
   includePaths: "URL pathname regex patterns to include.",
   excludePaths: "URL pathname regex patterns to exclude.",

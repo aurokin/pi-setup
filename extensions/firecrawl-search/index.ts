@@ -289,7 +289,11 @@ export default function firecrawlTools(pi: ExtensionAPI) {
         Type.Number({
           description: CRAWL_PARAMETER_DESCRIPTIONS.limit,
           minimum: 1,
-          maximum: 100,
+          // The schema is the real budget control. An identical guideline
+          // ("keep crawl limits as low as practical") was already in the
+          // prompt when a run spent the whole monthly allowance on crawls:
+          // a default of 20 and a ceiling of 100 read as permission.
+          maximum: 25,
         }),
       ),
       maxDiscoveryDepth: Type.Optional(
@@ -335,13 +339,13 @@ export default function firecrawlTools(pi: ExtensionAPI) {
     execute: (_toolCallId, params, signal, onUpdate) =>
       runFirecrawl(
         "crawl",
-        `Crawling up to ${params.limit ?? 20} pages from: ${params.url}`,
+        `Crawling up to ${params.limit ?? 5} pages from: ${params.url}`,
         ((params.timeout ?? 120) + 5) * 1_000,
         signal,
         onUpdate,
         (client) =>
           crawlEffect(client, params.url, {
-            limit: params.limit ?? 20,
+            limit: params.limit ?? 5,
             maxDiscoveryDepth: params.maxDiscoveryDepth,
             includePaths: params.includePaths,
             excludePaths: params.excludePaths,
