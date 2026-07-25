@@ -42,7 +42,16 @@ import {
   SpawnError,
 } from "./domain.ts";
 
-export const MAX_RUNNING = 4;
+/**
+ * How many agents the model may have running at once, across all backends.
+ *
+ * An arbitrary-but-deliberate ceiling on fan-out, not a platform limit; davis7's
+ * design plan left global-vs-per-backend caps open, and the sibling
+ * background-terminals manager picks 8 on the grounds that processes are
+ * cheaper than agents. The primary runtime is exempt (see `capExempt`): it is
+ * the user's own conversation, not fan-out.
+ */
+export const MAX_RUNNING = 5;
 export const MAX_TRACKED = 64;
 const STOP_TIMEOUT_MS = 5_000;
 const ERROR_TEXT_MAX_LENGTH = 4_096;
@@ -559,9 +568,18 @@ const makeManager = Effect.gen(function* () {
       addInterest(unique);
       const loop = Effect.gen(function* () {
         while (true) {
-          const pending = unique.filter(
-            (id) => entries.get(id)?.snapshot.status === "running",
-          );
+          // `restarting` counts as pending. `send` on a settled subagent
+          // dispatches asynchronously and leaves status "done" until the
+          // RunStarted event lands, so waiting on status alone returns
+          // immediately after a restart and hands back the *previous* turn's
+          // output. Cleared by RunStarted, by settle, and by a rejected send,
+          // so this cannot wait forever.
+          const pending = unique.filter((id) => {
+            const entry = entries.get(id);
+            return (
+              entry?.snapshot.status === "running" || entry?.restarting === true
+            );
+          });
           if (pending.length === 0) return;
           onPending?.(pending);
           yield* nextChange;
