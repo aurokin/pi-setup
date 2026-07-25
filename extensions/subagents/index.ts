@@ -42,6 +42,7 @@ import { Markdown, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { ROLE_NAMES, roleProfile } from "../shared/roles.ts";
 import { deriveBtwTitle, isModelVisible } from "./src/by-the-way.ts";
+import { registerPrimaryRuntime } from "./src/primary/index.ts";
 import {
   BACKEND_NAMES,
   formatElapsed,
@@ -229,6 +230,10 @@ export default function (pi: ExtensionAPI) {
       deliverBtwResult({ ...snap, meta: { ...snap.meta } });
       return;
     }
+    // The primary runtime renders its own turns and must never be delivered as
+    // a follow-up: that would hand Claude's reply to pi's model as a prompt and
+    // start a native turn behind the user's back.
+    if (snap.origin === "primary") return;
     if (consumed) {
       resultDelivery.consume([snap.id]);
       return;
@@ -249,6 +254,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_settled", flushResults);
 
   pi.on("session_shutdown", async () => {
+    primary.dispose();
     sessionContext = undefined;
     resultDelivery.clear();
     unsubStatus?.();
@@ -728,6 +734,81 @@ export default function (pi: ExtensionAPI) {
     description:
       "Ask a one-off side question while the main agent keeps working",
     handler: runByTheWay,
+  });
+
+  const primary = registerPrimaryRuntime(pi, {
+    getManager,
+    ui: () => ui,
+    send: async (id, text) => {
+      const manager = await getManager();
+      await runTool(getRuntime(), manager.send(id, text));
+    },
+    spawn: async (options) => {
+      const manager = await getManager();
+      const ctx = sessionContext;
+      if (!ctx) throw new Error("Session is not ready.");
+      return runTool(
+        getRuntime(),
+        manager.spawn("claude", {
+          origin: "primary",
+          prompt: options.prompt,
+          // The primary runtime is the user driving; it is not a read-only
+          // helper, so it gets the role that can actually change things.
+          role: "worker",
+          title: "primary runtime",
+          cwd: options.cwd,
+          model: options.model,
+          reasoningEffort: options.effort as never,
+          parent: {
+            parentCwd: ctx.cwd,
+            projectTrusted: ctx.isProjectTrusted(),
+            inheritedModel: ctx.model
+              ? { provider: ctx.model.provider, id: ctx.model.id }
+              : undefined,
+            inheritedThinkingLevel: pi.getThinkingLevel(),
+            modelRegistry: ctx.modelRegistry,
+          },
+        }),
+      );
+    },
+  });
+
+  pi.registerEntryRenderer<{
+    text?: string;
+    status?: string;
+    errorText?: string;
+    model?: string;
+  }>("runtime-turn", (entry, { expanded }, theme) => {
+    const data = entry.data;
+    const failed = data?.status === "error";
+    const header =
+      `${failed ? theme.fg("error", "x") : theme.fg("accent", "▌")} ` +
+      theme.fg("accent", theme.bold(data?.model ?? "claude")) +
+      (failed ? theme.fg("error", " · failed") : "");
+    const body = [data?.errorText ? `Error: ${data.errorText}` : "", data?.text]
+      .filter(Boolean)
+      .join("\n\n");
+    if (expanded) {
+      const md = new Markdown(body, 0, 0, getMarkdownTheme());
+      const container = new Text(header, 0, 0);
+      return {
+        render: (width: number) => [
+          ...container.render(width),
+          ...md.render(width),
+        ],
+        invalidate: () => {
+          container.invalidate();
+          md.invalidate();
+        },
+      };
+    }
+    const lines = body.split("\n");
+    let text = header;
+    for (const line of lines.slice(0, 12))
+      text += `\n${theme.fg("toolOutput", line)}`;
+    if (lines.length > 12)
+      text += `\n${theme.fg("dim", "... (ctrl+o to expand)")}`;
+    return new Text(text, 0, 0);
   });
 
   pi.registerCommand("subagents", {

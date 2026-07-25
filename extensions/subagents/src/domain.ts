@@ -14,8 +14,12 @@ import type { RoleName } from "../../shared/roles.ts";
 export const BACKEND_NAMES = ["pi", "claude", "codex"] as const;
 export type BackendName = (typeof BACKEND_NAMES)[number];
 
-/** Who initiated the session. User asides stay out of model-facing tooling. */
-export type SubagentOrigin = "model" | "btw";
+/**
+ * Who initiated the session. Only "model" sessions are visible to the subagent
+ * tools; user asides ("btw") and the primary Claude runtime ("primary") are
+ * this session's own conversations, not fan-out the model should manage.
+ */
+export type SubagentOrigin = "model" | "btw" | "primary";
 
 /**
  * Shared reasoning-effort scale (pi's thinking levels). Each backend maps a
