@@ -17,6 +17,11 @@ Inherited from upstream:
 - an ask-user tool, which lets the model ask multiple-choice questions
 - first-class `fd` (file discovery) and `rg` (content search) tools
 
+Ours:
+
+- a system prompt layer appending our engineering preferences to every turn
+  ([design](extensions/system-prompt/docs/design.md))
+
 ## Setup
 
 See [SETUP.md](SETUP.md).
