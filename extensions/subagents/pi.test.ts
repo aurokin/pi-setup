@@ -8,9 +8,9 @@
  * follow-up send — plus the tool restriction that makes the reader role mean
  * anything.
  *
- * `piBackend.available` is unconditionally true (there is no executable to
- * find), so these do not skip; they need a working parent model configuration
- * the same way the session itself does.
+ * `piBackend.available` is unconditionally true — there is no executable to
+ * look for — so these derive their own skip condition from whether the model
+ * below is actually reachable on this machine.
  */
 
 import assert from "node:assert/strict";
@@ -27,21 +27,32 @@ import { createSubagentRuntime, runTool } from "./src/runtime.ts";
 
 /** Cheap, and the one the session itself defaults to. */
 const MODEL = "openai-codex/gpt-5.4-mini";
+const [MODEL_PROVIDER, MODEL_ID] = MODEL.split("/");
 
 /**
  * The pi backend resolves models through the parent session's registry, so a
  * test outside a session has to build one. Defaults throughout: the same
  * on-disk credentials and model catalog the session itself reads.
+ *
+ * Returns undefined when this machine cannot reach the model. The pi backend
+ * reports `available: true` unconditionally — there is no executable to look
+ * for — so unlike the Claude and Codex suites these have to derive their own
+ * skip condition, or `npm test` fails on any checkout without this provider
+ * configured.
  */
-async function parentContext(): Promise<ParentContext> {
+async function parentContext(): Promise<ParentContext | undefined> {
   const modelRegistry = new ModelRegistry(await ModelRuntime.create());
   await modelRegistry.refresh();
+  const model = modelRegistry.find(MODEL_PROVIDER, MODEL_ID);
+  if (!model || !modelRegistry.hasConfiguredAuth(model)) return undefined;
   return {
     parentCwd: process.cwd(),
     projectTrusted: false,
     modelRegistry,
   };
 }
+
+const UNAVAILABLE = `${MODEL} is not configured on this machine`;
 
 function task(
   parent: ParentContext,
@@ -74,10 +85,14 @@ function deadline<A>(operation: Promise<A>, timeoutMs: number) {
 test(
   "pi backend completes a live manager run",
   { timeout: 120_000 },
-  async () => {
+  async (t) => {
+    const parent = await parentContext();
+    if (!parent) {
+      t.skip(UNAVAILABLE);
+      return;
+    }
     const runtime = createSubagentRuntime();
     try {
-      const parent = await parentContext();
       const manager = await runtime.runPromise(SubagentManager);
       const started = await runTool(
         runtime,
@@ -97,10 +112,14 @@ test(
 test(
   "pi backend keeps its session across a follow-up send",
   { timeout: 180_000 },
-  async () => {
+  async (t) => {
+    const parent = await parentContext();
+    if (!parent) {
+      t.skip(UNAVAILABLE);
+      return;
+    }
     const runtime = createSubagentRuntime();
     try {
-      const parent = await parentContext();
       const manager = await runtime.runPromise(SubagentManager);
       const started = await runTool(
         runtime,
@@ -141,10 +160,14 @@ test(
 test(
   "a reader-role pi child is not given the tools it would need to write",
   { timeout: 120_000 },
-  async () => {
+  async (t) => {
+    const parent = await parentContext();
+    if (!parent) {
+      t.skip(UNAVAILABLE);
+      return;
+    }
     const runtime = createSubagentRuntime();
     try {
-      const parent = await parentContext();
       const manager = await runtime.runPromise(SubagentManager);
       const started = await runTool(
         runtime,
@@ -180,7 +203,12 @@ test(
 test(
   "a forked child starts from the parent session's history",
   { timeout: 120_000 },
-  async () => {
+  async (t) => {
+    const parent = await parentContext();
+    if (!parent) {
+      t.skip(UNAVAILABLE);
+      return;
+    }
     const source = SessionManager.create(process.cwd());
     source.appendMessage({
       role: "user",
@@ -192,7 +220,6 @@ test(
 
     const runtime = createSubagentRuntime();
     try {
-      const parent = await parentContext();
       const manager = await runtime.runPromise(SubagentManager);
       const started = await runTool(
         runtime,
@@ -218,10 +245,14 @@ test(
 test(
   "an unreadable fork source degrades to a fresh child, not a failed spawn",
   { timeout: 120_000 },
-  async () => {
+  async (t) => {
+    const parent = await parentContext();
+    if (!parent) {
+      t.skip(UNAVAILABLE);
+      return;
+    }
     const runtime = createSubagentRuntime();
     try {
-      const parent = await parentContext();
       const manager = await runtime.runPromise(SubagentManager);
       const started = await runTool(
         runtime,
