@@ -166,7 +166,13 @@ export default function (pi: ExtensionAPI) {
 
   const updateStatus = (manager: SubagentManagerShape) => {
     if (!ui) return;
-    const subs = manager.view.list();
+    // The primary runtime is this session's own conversation, not delegated
+    // work, so counting it here reads as "you have 1 subagent" the moment
+    // Claude answers a prompt. It stays in the /subagents picker, where taking
+    // it over to watch the live stream is genuinely useful.
+    const subs = manager.view
+      .list()
+      .filter((snap) => snap.origin !== "primary");
     if (subs.length === 0) {
       ui.setStatus("subagents", undefined);
       return;
@@ -772,6 +778,17 @@ export default function (pi: ExtensionAPI) {
         }),
       );
     },
+  });
+
+  // Without a renderer pi labels a custom message with its raw customType, so
+  // the handoff note reaches the user prefixed with "[runtime-handoff]".
+  pi.registerMessageRenderer("runtime-handoff", (message, _options, theme) => {
+    const content = typeof message.content === "string" ? message.content : "";
+    const header = theme.fg("muted", "↩ runtime handed back to pi");
+    let text = header;
+    for (const line of content.split("\n"))
+      text += `\n${theme.fg("muted", line)}`;
+    return new Text(text, 0, 0);
   });
 
   pi.registerEntryRenderer<{
