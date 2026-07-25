@@ -5,10 +5,12 @@ import {
   ENGINEERING_POLICY_CHILD_NOTE,
 } from "./engineering-policy.ts";
 import {
+  INTERNAL_ROLE_NAMES,
   ROLE_NAMES,
   ROLE_PROFILES,
   buildRolePrompt,
   getRoleProfile,
+  roleProfile,
 } from "./roles.ts";
 
 const reader = getRoleProfile("reader");
@@ -17,7 +19,23 @@ const duck = getRoleProfile("rubber-duck");
 
 test("every advertised role name resolves to a profile", () => {
   for (const name of ROLE_NAMES) assert.ok(getRoleProfile(name), name);
-  assert.equal(ROLE_PROFILES.size, ROLE_NAMES.length);
+  assert.equal(
+    ROLE_PROFILES.size,
+    ROLE_NAMES.length + INTERNAL_ROLE_NAMES.length,
+  );
+});
+
+test("internal roles are not offered to the model or reachable by name", () => {
+  // The unrestricted role is safe only where this extension puts it. Offered
+  // on the spawn enum it would be a generic subagent with no tool policy.
+  for (const name of INTERNAL_ROLE_NAMES) {
+    assert.ok(
+      !(ROLE_NAMES as readonly string[]).includes(name),
+      `${name} is advertised to the model`,
+    );
+    assert.equal(getRoleProfile(name), undefined, name);
+    assert.ok(roleProfile(name), `${name} is unreachable internally too`);
+  }
 });
 
 test("lookup is case-insensitive and rejects unknown names", () => {

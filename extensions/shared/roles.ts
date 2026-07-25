@@ -25,15 +25,30 @@ import {
   ENGINEERING_POLICY_CHILD_NOTE,
 } from "./engineering-policy.ts";
 
+/** Roles the model may choose, and the enum the spawn tool advertises. */
 export const ROLE_NAMES = [
   "reader",
   "worker",
   "advisor",
   "rubber-duck",
-  "side",
 ] as const;
 
-export type RoleName = (typeof ROLE_NAMES)[number];
+/**
+ * Roles this extension spawns for itself, deliberately absent from the enum
+ * above.
+ *
+ * `side` is the reason this split exists. It carries no tool exclusions at all
+ * because a forked child needs the parent's exact surface to reuse its cache —
+ * safe for `/btw`, where the child inherits the conversation and a prompt that
+ * tells it what not to touch, and not safe as a generic option a model can ask
+ * for. Offered on the enum it would be an unrestricted subagent with none of
+ * the context that makes the restriction-by-prompt work, and the one path by
+ * which a child could spawn children.
+ */
+export const INTERNAL_ROLE_NAMES = ["side"] as const;
+
+export type RoleName =
+  (typeof ROLE_NAMES)[number] | (typeof INTERNAL_ROLE_NAMES)[number];
 
 export interface RoleProfile {
   readonly name: RoleName;
@@ -117,9 +132,18 @@ export const ROLE_PROFILES: ReadonlyMap<RoleName, RoleProfile> = new Map(
   roles.map((role) => [role.name, role]),
 );
 
-/** Lookup from untrusted input (a tool argument), so failure is expected. */
+/**
+ * Lookup from untrusted input (a tool argument), so failure is expected.
+ *
+ * Internal roles do not resolve here even by exact name. The spawn tool's enum
+ * already rejects them, and this is the second lock: whatever else changes,
+ * a role the model names cannot be one that restricts nothing.
+ */
 export function getRoleProfile(name: string): RoleProfile | undefined {
-  return ROLE_PROFILES.get(name.toLowerCase() as RoleName);
+  const key = name.toLowerCase() as RoleName;
+  if ((INTERNAL_ROLE_NAMES as readonly string[]).includes(key))
+    return undefined;
+  return ROLE_PROFILES.get(key);
 }
 
 /** Lookup from an already-validated `RoleName`, where absence is a bug. */
