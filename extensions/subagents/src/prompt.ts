@@ -12,6 +12,8 @@ export const SUBAGENT_SPAWN_PROMPT_SNIPPET =
 export const SUBAGENT_SPAWN_PROMPT_GUIDELINES = [
   "Use subagent_spawn to delegate self-contained tasks that can run in the background; give it a complete, standalone prompt.",
   "Pick the subagent harness deliberately: pi unless you have a reason to prefer Claude Code or Codex (e.g. the user asked for one, or the task suits that harness).",
+  "Give a subagent the least role its task needs: reader unless it genuinely has to change something. Only worker can edit files or run commands.",
+  "For advisor and rubber-duck, prefer a harness whose model family differs from this session's — a second opinion from the same family is worth less.",
   "After subagent_spawn, keep working; results arrive automatically. Only call subagent_wait when you cannot proceed without the result.",
 ];
 
@@ -22,7 +24,7 @@ export const SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS = {
   name: "Short human-readable name for this subagent, shown in listings and the UI",
   role: 'What the subagent may do. "reader": read-only investigation of any kind — exploration, review, planning; it cannot edit files or run commands, so your prompt supplies the framing. "worker": the only role that can edit files and run commands. "advisor": a read-only second opinion on risks, assumptions, and the next action. "rubber-duck": read-only, and questions the approach rather than solving it. Pick reader unless the task genuinely needs to change something.',
   harness:
-    'Harness to run the subagent on: "pi" (in-process pi session; inherits this environment), "claude" (Claude Code), or "codex" (Codex CLI). Omit to use the role\'s default, which is usually right — advisor and rubber-duck default to a different model family on purpose.',
+    'Harness to run the subagent on: "pi" (in-process pi session; inherits this environment), "claude" (Claude Code), or "codex" (Codex CLI). Independent of the role — every role runs on every harness. Choose deliberately per task.',
   workingDir:
     "Trusted working directory for the autonomous child (default: current working directory)",
   model:

@@ -1,11 +1,17 @@
 /**
  * Subagent role profiles: what a child may do, and what it is for.
  *
- * A role can carry three things — a framing prompt, a tool policy, and a
- * backend default. Only the last two are worth a role: the caller's spawn
- * prompt already supplies framing for free. So roles exist along the axes a
- * prompt cannot express, and near-duplicate read-only framings (scout,
- * planner, reviewer) collapse into one `reader`.
+ * A role carries a tool policy and a framing prompt. The tool policy is the
+ * part that earns a role — there is no way to say "and no shell" from the
+ * prompt field — so near-duplicate read-only framings the caller could simply
+ * type (scout, planner, reviewer) collapse into one `reader`.
+ *
+ * Roles say nothing about which harness runs them. Function and backend are
+ * independent: every role works on pi, Claude Code, and Codex, and the caller
+ * picks the pairing. Advisor and rubber-duck are worth more on a model family
+ * different from the parent's, but that is a fact about the pairing, not about
+ * the role — pinning advisor to Claude would be exactly wrong in a session
+ * that is already Claude.
  *
  * Read-only here means read-only in the tool list, not merely in the prose. The
  * predecessor of this file granted every read-only role a preapproved `bash`
@@ -32,8 +38,6 @@ export interface RoleProfile {
   readonly name: RoleName;
   /** One line, shown in the spawn tool schema so the parent can choose. */
   readonly description: string;
-  /** Backend used when the caller does not name one. */
-  readonly defaultBackend: "pi" | "claude" | "codex";
   /** False means the tool policy removes every mutating tool, bash included. */
   readonly writeCapable: boolean;
   /** Framing, prepended ahead of the engineering policy and the caller's task. */
@@ -50,7 +54,6 @@ const roles: RoleProfile[] = [
     name: "reader",
     description:
       "Read-only investigation — exploration, review, planning. The prompt supplies the framing",
-    defaultBackend: "pi",
     writeCapable: false,
     // Deliberately no framing of its own. A caller who wants a reviewer says
     // so in the prompt; what they cannot say in the prompt is "and no bash".
@@ -60,7 +63,6 @@ const roles: RoleProfile[] = [
     name: "worker",
     description:
       "Full coding worker — the only role that can edit files and run commands",
-    defaultBackend: "pi",
     writeCapable: true,
     systemPrompt:
       "You are a worker. Complete the assigned coding task end to end: read before editing, keep the change scoped to what was asked, and verify proportionally to the risk. Report what you changed and what you ran.",
@@ -68,7 +70,6 @@ const roles: RoleProfile[] = [
   {
     name: "advisor",
     description: "Second opinion on risks, assumptions, and the next action",
-    defaultBackend: "claude",
     writeCapable: false,
     defaultTask:
       "Review the work described for substantive risks, weak assumptions, missing validation, and simpler next steps.",
@@ -76,9 +77,7 @@ const roles: RoleProfile[] = [
   },
   {
     name: "rubber-duck",
-    description:
-      "Questions the approach instead of solving it, on a different model family",
-    defaultBackend: "codex",
+    description: "Questions the approach instead of solving it",
     writeCapable: false,
     defaultTask:
       "Question the current approach: its assumptions, the evidence behind them, the ambiguous requirements, and the simpler alternatives.",
