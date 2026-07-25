@@ -26,6 +26,12 @@ Ours:
 
 See [SETUP.md](SETUP.md).
 
+## Not built yet
+
+[docs/unbuilt.md](docs/unbuilt.md) collects design notes for things this setup
+does not have — context observability, session topology, and patterns worth
+taking from other agents.
+
 ## Development
 
 ```sh
