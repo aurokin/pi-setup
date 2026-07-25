@@ -82,6 +82,30 @@ test("the destructive-git rule holds for a child that cannot ask", () => {
     assert.ok(rule.includes(verb), `missing ${verb}`);
 });
 
+test("the concision rule names the waste rather than asking for less", () => {
+  // Pi's base prompt already says "Be concise in your responses" and it does
+  // not bite; a second copy would be dead weight under this file's own rule.
+  // What earns the line is naming the specific waste, so pin those.
+  assert.doesNotMatch(ENGINEERING_POLICY, /be concise/i);
+  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("packaging"));
+  assert.ok(rule);
+  for (const waste of ["preamble", "restating the request", "recap"])
+    assert.ok(rule.includes(waste), `missing ${waste}`);
+});
+
+test("brevity does not undercut the rules that require disclosure", () => {
+  // Read against each other, "say when you are guessing" and "name what you did
+  // not verify" are exactly the text a brevity rule tempts a model to drop.
+  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("packaging"));
+  assert.ok(rule);
+  assert.match(rule, /rules above require you to say still gets said/);
+  assert.ok(
+    ENGINEERING_POLICY_BULLETS.indexOf(rule) ===
+      ENGINEERING_POLICY_BULLETS.length - 1,
+    "the carve-out says 'above', so this rule has to be last",
+  );
+});
+
 test("the child note is not carried by the parent policy", () => {
   assert.ok(!ENGINEERING_POLICY.includes(ENGINEERING_POLICY_CHILD_NOTE));
   assert.ok(ENGINEERING_POLICY_CHILD_NOTE.length > 0);

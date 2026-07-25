@@ -15,7 +15,14 @@
  * underspecified-request rule ends in "state the assumption and proceed" — left
  * to inherit that, a subagent that cannot ask would read the ban as satisfied.
  *
- * A rule earns a line only if a frontier model would not already follow it.
+ * A rule earns a line only if a frontier model would not already follow it, and
+ * only in the form that bites. Pi's base prompt already carries "Be concise in
+ * your responses" (`core/system-prompt.js:70`), so the concision rule here does
+ * not repeat it — it names the waste instead, which is the difference between
+ * the two in every shipped prompt worth copying. It is also the one rule a
+ * Claude Code or Codex child would otherwise never see, since neither runs pi's
+ * base prompt.
+ *
  * Anything a tool description already conveys belongs in the schema, not here:
  * the `rg`/`fd` guidance went once their tool descriptions were confirmed to
  * reach the model (pi's contradicting advice is stripped in
@@ -45,6 +52,7 @@ export const ENGINEERING_POLICY_BULLETS = [
   "- Say when you are guessing.",
   "- Say so when you see a better path than the one asked for, then do what was asked unless redirected.",
   "- Organize what you report so the reader can find, without hunting, whichever of these apply: what you did, what you want reviewed, what you need from them, and anything notable you found along the way.",
+  "- Cut the packaging, not the content: no preamble, no restating the request back, no recap of work the reader just watched, no closing offer of further help. Length should track what the reader does not already know — everything the rules above require you to say still gets said.",
 ];
 
 /**
