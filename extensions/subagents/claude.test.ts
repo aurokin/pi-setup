@@ -14,6 +14,7 @@ const parent: ParentContext = {
 function task(prompt: string): SpawnTask {
   return {
     prompt,
+    role: "reader",
     title: "live Claude test",
     cwd: process.cwd(),
     model: "haiku",

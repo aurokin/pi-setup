@@ -40,6 +40,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Markdown, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { ROLE_NAMES, roleProfile } from "../shared/roles.ts";
 import { deriveBtwTitle, isModelVisible } from "./src/by-the-way.ts";
 import {
   BACKEND_NAMES,
@@ -277,9 +278,14 @@ export default function (pi: ExtensionAPI) {
       name: Type.String({
         description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.name,
       }),
-      harness: StringEnum(BACKEND_NAMES, {
-        description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.harness,
+      role: StringEnum(ROLE_NAMES, {
+        description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.role,
       }),
+      harness: Type.Optional(
+        StringEnum(BACKEND_NAMES, {
+          description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.harness,
+        }),
+      ),
       working_dir: Type.Optional(
         Type.String({
           description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.workingDir,
@@ -298,7 +304,11 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
       const manager = await getManager();
-      const harness = params.harness;
+      const role = roleProfile(params.role);
+      // The role's default backend is a real choice, not a fallback: advisor
+      // and rubber-duck exist to disagree with this session, which a child on
+      // the parent's own model is measurably worse at.
+      const harness = params.harness ?? role.defaultBackend;
 
       const cwd = path.resolve(ctx.cwd, params.working_dir ?? ".");
       if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
@@ -310,6 +320,7 @@ export default function (pi: ExtensionAPI) {
         getRuntime(),
         manager.spawn(harness, {
           prompt: params.prompt,
+          role: role.name,
           title,
           cwd,
           model: params.model,
@@ -689,6 +700,9 @@ export default function (pi: ExtensionAPI) {
         manager.spawn("pi", {
           origin: "btw",
           prompt,
+          // A side question asked while the main agent works. It answers; it
+          // does not edit the tree out from under the session you are in.
+          role: "reader",
           title: deriveBtwTitle(prompt),
           cwd: ctx.cwd,
           parent: {

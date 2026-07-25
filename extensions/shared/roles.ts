@@ -1,0 +1,135 @@
+/**
+ * Subagent role profiles: what a child may do, and what it is for.
+ *
+ * A role can carry three things — a framing prompt, a tool policy, and a
+ * backend default. Only the last two are worth a role: the caller's spawn
+ * prompt already supplies framing for free. So roles exist along the axes a
+ * prompt cannot express, and near-duplicate read-only framings (scout,
+ * planner, reviewer) collapse into one `reader`.
+ *
+ * Read-only here means read-only in the tool list, not merely in the prose. The
+ * predecessor of this file granted every read-only role a preapproved `bash`
+ * while denying it `read`/`grep`/`edit`, so "read-only" agents could `rm` and
+ * the one write-capable role could not edit. Roles declare the restriction;
+ * `subagents/src/tool-policy.ts` is what makes it true.
+ */
+
+import {
+  ENGINEERING_POLICY,
+  ENGINEERING_POLICY_CHILD_NOTE,
+} from "./engineering-policy.ts";
+
+export const ROLE_NAMES = [
+  "reader",
+  "worker",
+  "advisor",
+  "rubber-duck",
+] as const;
+
+export type RoleName = (typeof ROLE_NAMES)[number];
+
+export interface RoleProfile {
+  readonly name: RoleName;
+  /** One line, shown in the spawn tool schema so the parent can choose. */
+  readonly description: string;
+  /** Backend used when the caller does not name one. */
+  readonly defaultBackend: "pi" | "claude" | "codex";
+  /** False means the tool policy removes every mutating tool, bash included. */
+  readonly writeCapable: boolean;
+  /** Framing, prepended ahead of the engineering policy and the caller's task. */
+  readonly systemPrompt: string;
+  /** Used when the caller spawns this role with no task of its own. */
+  readonly defaultTask?: string;
+}
+
+const READ_ONLY_NOTE =
+  "You have read tools only; you cannot edit files or run commands.";
+
+const roles: RoleProfile[] = [
+  {
+    name: "reader",
+    description:
+      "Read-only investigation — exploration, review, planning. The prompt supplies the framing",
+    defaultBackend: "pi",
+    writeCapable: false,
+    // Deliberately no framing of its own. A caller who wants a reviewer says
+    // so in the prompt; what they cannot say in the prompt is "and no bash".
+    systemPrompt: `You are investigating, not changing anything. Ground every claim in what the repository actually contains and cite the files and symbols behind it. ${READ_ONLY_NOTE}`,
+  },
+  {
+    name: "worker",
+    description:
+      "Full coding worker — the only role that can edit files and run commands",
+    defaultBackend: "pi",
+    writeCapable: true,
+    systemPrompt:
+      "You are a worker. Complete the assigned coding task end to end: read before editing, keep the change scoped to what was asked, and verify proportionally to the risk. Report what you changed and what you ran.",
+  },
+  {
+    name: "advisor",
+    description: "Second opinion on risks, assumptions, and the next action",
+    defaultBackend: "claude",
+    writeCapable: false,
+    defaultTask:
+      "Review the work described for substantive risks, weak assumptions, missing validation, and simpler next steps.",
+    systemPrompt: `You are an advisor giving a second opinion. Name the correctness risks, the assumptions doing the most load-bearing work, the validation that is missing, and any simpler path. Return findings, questions, and one suggested next action. ${READ_ONLY_NOTE}`,
+  },
+  {
+    name: "rubber-duck",
+    description:
+      "Questions the approach instead of solving it, on a different model family",
+    defaultBackend: "codex",
+    writeCapable: false,
+    defaultTask:
+      "Question the current approach: its assumptions, the evidence behind them, the ambiguous requirements, and the simpler alternatives.",
+    systemPrompt: `You are a rubber duck. Do not solve or implement the task — question it. Return the assumptions being made, the questions that would change the approach, the evidence that is missing, any simpler path, and the single best next question to ask. ${READ_ONLY_NOTE}`,
+  },
+];
+
+export const ROLE_PROFILES: ReadonlyMap<RoleName, RoleProfile> = new Map(
+  roles.map((role) => [role.name, role]),
+);
+
+/** Lookup from untrusted input (a tool argument), so failure is expected. */
+export function getRoleProfile(name: string): RoleProfile | undefined {
+  return ROLE_PROFILES.get(name.toLowerCase() as RoleName);
+}
+
+/** Lookup from an already-validated `RoleName`, where absence is a bug. */
+export function roleProfile(name: RoleName): RoleProfile {
+  const role = ROLE_PROFILES.get(name);
+  if (!role) throw new Error(`Unknown subagent role: ${name}`);
+  return role;
+}
+
+/**
+ * Whether the child's system prompt already carries the engineering policy.
+ *
+ * A pi child loads this repo's extensions, so the `system-prompt` extension
+ * appends the policy to its system prompt before it reads a word of the task.
+ * Prepending a second copy would spend tokens to say the same thing twice.
+ * Claude Code and Codex children run their own harness prompts and get it here.
+ */
+export type PolicyPlacement = "include" | "inherited";
+
+/**
+ * Compose everything a headless child is told, in one string.
+ *
+ * The role framing leads, the shared rules follow, then the task. The child
+ * note rides along because this is the only path by which a child learns that
+ * its final message is the entire deliverable.
+ */
+export function buildRolePrompt(options: {
+  role: RoleProfile;
+  task: string;
+  policy: PolicyPlacement;
+}): string {
+  const task = options.task.trim() || options.role.defaultTask || "";
+  return [
+    options.role.systemPrompt,
+    ...(options.policy === "include" ? [ENGINEERING_POLICY] : []),
+    ENGINEERING_POLICY_CHILD_NOTE,
+    "## Task",
+    task,
+  ].join("\n\n");
+}

@@ -33,6 +33,8 @@ import type {
   TranscriptPart,
 } from "../domain.ts";
 import { SendError, SpawnError } from "../domain.ts";
+import { buildRolePrompt, roleProfile } from "../../../shared/roles.ts";
+import { toolPolicy } from "../tool-policy.ts";
 
 const CLAUDE_CONTEXT_WINDOW = 200_000;
 const INTERRUPT_TIMEOUT_MS = 2_000;
@@ -288,6 +290,7 @@ const makeClaudeSession = (
   task: SpawnTask,
 ): Effect.Effect<SubagentSession, SpawnError, Scope.Scope> =>
   Effect.gen(function* () {
+    const role = roleProfile(task.role);
     const input = new ClaudeInput();
     const abortController = new AbortController();
     const events = yield* Queue.make<SubagentEvent, Cause.Done>();
@@ -332,9 +335,13 @@ const makeClaudeSession = (
             // its tools without interactive permission checks.
             permissionMode: "bypassPermissions",
             allowDangerouslySkipPermissions: true,
-            // Keep child orchestration inside this extension's global manager
-            // and concurrency cap rather than Claude Code's native subagents.
-            disallowedTools: ["Agent", "Task"],
+            // Keeps child orchestration inside this extension's manager and
+            // concurrency cap, and strips every mutating tool for a read-only
+            // role. `bypassPermissions` above means this list is the only
+            // thing standing between such a child and the filesystem.
+            disallowedTools: [
+              ...toolPolicy(role.writeCapable).claudeDisallowedTools,
+            ],
             // For cwds pi marked untrusted, restrict to user-level settings so
             // an untrusted project's config cannot reconfigure the child.
             ...(task.parent.projectTrusted
@@ -632,7 +639,9 @@ const makeClaudeSession = (
     };
 
     emit({ _tag: "MetaChanged", meta: state.meta });
-    submit(task.prompt);
+    // Claude Code runs its own harness prompt, so this child gets the
+    // engineering policy here or not at all.
+    submit(buildRolePrompt({ role, task: task.prompt, policy: "include" }));
 
     return {
       meta: Effect.sync(() => state.meta),

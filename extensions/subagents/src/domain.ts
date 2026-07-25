@@ -9,6 +9,7 @@
 
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { Data } from "effect";
+import type { RoleName } from "../../shared/roles.ts";
 
 export const BACKEND_NAMES = ["pi", "claude", "codex"] as const;
 export type BackendName = (typeof BACKEND_NAMES)[number];
@@ -49,7 +50,14 @@ export interface ParentContext {
 export interface SpawnTask {
   /** Omitted for normal tool-driven spawns. */
   readonly origin?: SubagentOrigin;
+  /** The caller's task, as written. Backends wrap it with the role framing. */
   readonly prompt: string;
+  /**
+   * What the child is allowed to do; every backend reads it for its tool
+   * restriction. Required rather than defaulted, so a caller who forgets to
+   * choose fails to compile instead of silently getting write access.
+   */
+  readonly role: RoleName;
   readonly title: string;
   readonly cwd: string;
   /**

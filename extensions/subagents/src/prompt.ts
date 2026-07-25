@@ -20,8 +20,9 @@ export const SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS = {
   prompt:
     "Task prompt for the subagent. Must be self-contained: include all needed context, file paths, and what to report back.",
   name: "Short human-readable name for this subagent, shown in listings and the UI",
+  role: 'What the subagent may do. "reader": read-only investigation of any kind — exploration, review, planning; it cannot edit files or run commands, so your prompt supplies the framing. "worker": the only role that can edit files and run commands. "advisor": a read-only second opinion on risks, assumptions, and the next action. "rubber-duck": read-only, and questions the approach rather than solving it. Pick reader unless the task genuinely needs to change something.',
   harness:
-    'Harness to run the subagent on: "pi" (in-process pi session; inherits this environment), "claude" (Claude Code), or "codex" (Codex CLI). Choose deliberately per task.',
+    'Harness to run the subagent on: "pi" (in-process pi session; inherits this environment), "claude" (Claude Code), or "codex" (Codex CLI). Omit to use the role\'s default, which is usually right — advisor and rubber-duck default to a different model family on purpose.',
   workingDir:
     "Trusted working directory for the autonomous child (default: current working directory)",
   model:

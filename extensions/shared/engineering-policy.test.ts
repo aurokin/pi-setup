@@ -71,7 +71,14 @@ test("the destructive-git rule holds for a child that cannot ask", () => {
   );
   assert.ok(rule);
   assert.match(rule, /asking is impossible/);
-  for (const verb of ["revert", "stash", "checkout", "reset", "clean", "force-push"])
+  for (const verb of [
+    "revert",
+    "stash",
+    "checkout",
+    "reset",
+    "clean",
+    "force-push",
+  ])
     assert.ok(rule.includes(verb), `missing ${verb}`);
 });
 

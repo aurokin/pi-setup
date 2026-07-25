@@ -24,6 +24,8 @@ import type {
   TranscriptPart,
 } from "../domain.ts";
 import { SendError, SpawnError } from "../domain.ts";
+import { buildRolePrompt, roleProfile } from "../../../shared/roles.ts";
+import { toolPolicy } from "../tool-policy.ts";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MODEL_LIST_TIMEOUT_MS = 5_000;
@@ -305,6 +307,7 @@ const makeCodexSession = (
   task: SpawnTask,
 ): Effect.Effect<SubagentSession, SpawnError, Scope.Scope> =>
   Effect.gen(function* () {
+    const role = roleProfile(task.role);
     const binary = resolveCodexBinary();
     if (!binary) {
       return yield* new SpawnError({
@@ -886,13 +889,14 @@ const makeCodexSession = (
           capabilities: { experimentalApi: true },
         });
         writeMessage({ method: "initialized" });
-        // Headless children cannot answer approval prompts. The caller
-        // already chose to launch an autonomous subagent, so give the thread
-        // full workspace access without interactive approval requests.
+        // Headless children cannot answer approval prompts, so approvals are
+        // off and the sandbox carries the whole restriction. Codex is the one
+        // backend where read-only is enforced by the OS rather than by
+        // withholding tool names, so it covers shell commands too.
         return request("thread/start", {
           cwd: task.cwd,
           approvalPolicy: "never",
-          sandbox: "danger-full-access",
+          sandbox: toolPolicy(role.writeCapable).codexSandbox,
           ephemeral: false,
           ...(task.model ? { model: task.model } : {}),
         });
@@ -927,7 +931,9 @@ const makeCodexSession = (
       );
     }
     emit({ _tag: "MetaChanged", meta: state.meta });
-    startRun(task.prompt);
+    // Codex runs its own harness prompt, so this child gets the engineering
+    // policy here or not at all.
+    startRun(buildRolePrompt({ role, task: task.prompt, policy: "include" }));
 
     return {
       meta: Effect.sync(() => state.meta),

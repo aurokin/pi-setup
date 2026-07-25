@@ -54,7 +54,7 @@ const parent: ParentContext = {
 };
 
 function task(prompt: string): SpawnTask {
-  return { prompt, title: "test", cwd: process.cwd(), parent };
+  return { prompt, role: "reader", title: "test", cwd: process.cwd(), parent };
 }
 
 async function withManager(

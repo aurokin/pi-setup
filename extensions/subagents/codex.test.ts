@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Effect } from "effect";
 import { codexBackend } from "./src/backends/codex.ts";
+import type { RoleName } from "../shared/roles.ts";
 import type { ParentContext, SpawnTask } from "./src/domain.ts";
 import { SubagentManager } from "./src/manager.ts";
 import { createSubagentRuntime, runTool } from "./src/runtime.ts";
@@ -11,9 +12,10 @@ const parent: ParentContext = {
   projectTrusted: false,
 };
 
-function task(prompt: string): SpawnTask {
+function task(prompt: string, role: RoleName = "reader"): SpawnTask {
   return {
     prompt,
+    role,
     title: "live Codex test",
     cwd: process.cwd(),
     parent,
@@ -83,7 +85,9 @@ test(
         runtime,
         manager.spawn(
           "codex",
-          task("Run `sleep 30`, then reply with the word finished."),
+          // worker: this exercises interrupting a live shell command, which a
+          // read-only sandbox would not let the child start in the first place.
+          task("Run `sleep 30`, then reply with the word finished.", "worker"),
         ),
       );
 

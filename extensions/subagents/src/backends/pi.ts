@@ -34,20 +34,11 @@ import type {
   TranscriptPart,
 } from "../domain.ts";
 import { SendError, SpawnError } from "../domain.ts";
+import { buildRolePrompt, roleProfile } from "../../../shared/roles.ts";
 import { createToolCallTimeoutGuard } from "../../../shared/tool-call-timeout.ts";
+import { toolPolicy } from "../tool-policy.ts";
 
 const CHILD_SHUTDOWN_TIMEOUT_MS = 5_000;
-
-/** Tools that headless children must not receive. Everything else stays enabled. */
-const CHILD_EXCLUDED_TOOL_NAMES = [
-  "subagent_spawn",
-  "subagent_wait",
-  "subagent_cancel",
-  "subagent_check",
-  "subagent_list",
-  "workflow",
-  "ask_user",
-] as const;
 
 // --- Model + effort resolution -----------------------------------------------
 
@@ -263,6 +254,7 @@ const makePiSession = (
   task: SpawnTask,
 ): Effect.Effect<SubagentSession, SpawnError, Scope.Scope> =>
   Effect.gen(function* () {
+    const role = roleProfile(task.role);
     const registry = task.parent.modelRegistry;
     if (!registry) {
       return yield* new SpawnError({
@@ -292,7 +284,7 @@ const makePiSession = (
           resourceLoader: loader,
           model,
           thinkingLevel,
-          excludeTools: [...CHILD_EXCLUDED_TOOL_NAMES],
+          excludeTools: [...toolPolicy(role.writeCapable).piExcludeTools],
         });
         // Start child extension session hooks/resources in headless mode.
         // A rejection here would otherwise leak the freshly created session:
@@ -520,7 +512,10 @@ const makePiSession = (
     ).pipe(Effect.ignore);
 
     emit({ _tag: "MetaChanged", meta: currentMeta() });
-    startRun(task.prompt);
+    // A pi child loads this repo's extensions, so `system-prompt` has already
+    // put the engineering policy in its system prompt. Sending it again here
+    // would pay for the same text twice.
+    startRun(buildRolePrompt({ role, task: task.prompt, policy: "inherited" }));
 
     return {
       meta: Effect.sync(currentMeta),
