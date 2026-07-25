@@ -18,6 +18,15 @@
  * while denying it `read`/`grep`/`edit`, so "read-only" agents could `rm` and
  * the one write-capable role could not edit. Roles declare the restriction;
  * `subagents/src/tool-policy.ts` is what makes it true.
+ *
+ * `side` is the deliberate exception, and the exception proves the rule: it
+ * keeps the parent's tools for the prompt cache and asks the prompt to do the
+ * restricting. Probed against a conversation carrying a pending destructive
+ * instruction, it declined a bare "go ahead" and a bare "continue" — but a
+ * side question that asked for a change made one, taking the details from the
+ * inherited instruction. That is the accepted behaviour, not a bug to fix: a
+ * user who asks for a change gets one. It is not a read-only guarantee, and
+ * nothing outside this role should be written as though prose can provide one.
  */
 
 import {
@@ -38,12 +47,12 @@ export const ROLE_NAMES = [
  * above.
  *
  * `side` is the reason this split exists. It carries no tool exclusions at all
- * because a forked child needs the parent's exact surface to reuse its cache —
- * safe for `/btw`, where the child inherits the conversation and a prompt that
- * tells it what not to touch, and not safe as a generic option a model can ask
- * for. Offered on the enum it would be an unrestricted subagent with none of
- * the context that makes the restriction-by-prompt work, and the one path by
- * which a child could spawn children.
+ * because a forked child needs the parent's exact surface to reuse its cache.
+ * That is a considered trade in `/btw`, where a person is watching the answer
+ * and owns the consequences of what they asked for. It is not a trade a model
+ * gets to make on its own behalf: offered on the enum it would be an
+ * unrestricted subagent with none of the context that makes the framing mean
+ * anything, and the one path by which a child could spawn children.
  */
 export const INTERNAL_ROLE_NAMES = ["side"] as const;
 
@@ -109,13 +118,20 @@ const roles: RoleProfile[] = [
   {
     name: "side",
     description:
-      "Side question against the current conversation, restricted by instruction rather than by tool list",
+      "Side question against the current conversation. Discouraged from changing anything, but not prevented — it will act if the question asks it to",
     // The one role restricted by prompt alone. Its job is to answer a question
     // about a conversation it has been handed a copy of, and the copy is worth
     // more than the guarantee: a child whose tool list differs from its parent
     // by even one entry gets a different cached prefix, and the whole inherited
     // history is re-read at full price. Same system prompt, same tools, framing
     // in the first user message — that is the only shape that reuses the cache.
+    //
+    // The prompt below discourages; it does not prevent, and testing says so.
+    // What it holds against is the inherited conversation: a pending "do X" in
+    // the history does not become this child's job, and a bare "go ahead" is
+    // read as belonging to the thread it came from. What it does not hold
+    // against is the person asking — by design. Ask a side question for a
+    // change and you get the change.
     writeCapable: true,
     inheritsParentTools: true,
     systemPrompt: [

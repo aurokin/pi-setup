@@ -137,3 +137,17 @@ test("an empty task falls back to the role's default", () => {
   assert.ok(duck.defaultTask);
   assert.ok(prompt.includes(duck.defaultTask));
 });
+
+test("the side role advertises that it is not read-only", () => {
+  // Probing found it declines instructions inherited from the forked thread
+  // but honours a side question that asks for a change. That is the accepted
+  // behaviour, so the description has to say so — a reader who believes /btw
+  // cannot touch the tree has been misled by us, not by the model.
+  const side = ROLE_PROFILES.get("side");
+  assert.ok(side);
+  assert.ok(
+    !/read-only|read only/i.test(side.description),
+    `side claims to be read-only: ${side.description}`,
+  );
+  assert.match(side.description, /\bnot prevented\b|\bwill act\b/i);
+});

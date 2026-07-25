@@ -757,7 +757,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerCommand("btw", {
     description:
-      "Ask a one-off side question while the main agent keeps working",
+      "Ask a side question against this conversation while the main agent keeps working — can act if you ask it to",
     handler: runByTheWay,
   });
 
