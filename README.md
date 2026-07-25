@@ -21,10 +21,6 @@ Ours:
 
 - a system prompt layer appending our engineering preferences to every turn
   ([design](extensions/system-prompt/docs/design.md))
-- the `i-have-adhd` output-shaping skill, vendored from
-  [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) under MIT
-  ([provenance](skills/i-have-adhd/VENDORED.md)). Invoke with
-  `/skill:i-have-adhd`; it is user-invoked only.
 
 ## Setup
 
