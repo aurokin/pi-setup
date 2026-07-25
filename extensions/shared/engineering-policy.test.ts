@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   ENGINEERING_POLICY,
+  ENGINEERING_POLICY_BULLETS,
   ENGINEERING_POLICY_HEADER,
+  ENGINEERING_POLICY_OVERRIDES,
   appendEngineeringPolicy,
 } from "./engineering-policy.ts";
 
@@ -23,12 +25,19 @@ test("does not re-append when another extension moved the section", () => {
   assert.equal(appendEngineeringPolicy(reordered), reordered);
 });
 
-test("policy leads with its header and is all bullets", () => {
-  const [header, blank, ...bullets] = ENGINEERING_POLICY.split("\n");
-  assert.equal(header, ENGINEERING_POLICY_HEADER);
-  assert.equal(blank, "");
-  assert.ok(bullets.length > 0);
-  for (const bullet of bullets) assert.match(bullet, /^- \S/);
+test("policy leads with its header, then bullets, then the override clause", () => {
+  const lines = ENGINEERING_POLICY.split("\n");
+  assert.equal(lines[0], ENGINEERING_POLICY_HEADER);
+  assert.equal(lines[1], "");
+  assert.ok(ENGINEERING_POLICY_BULLETS.length > 0);
+  for (const bullet of ENGINEERING_POLICY_BULLETS)
+    assert.match(bullet, /^- \S/);
+  assert.equal(lines.at(-1), ENGINEERING_POLICY_OVERRIDES);
+});
+
+test("the override clause is prose, so rules are not read as absolute", () => {
+  assert.doesNotMatch(ENGINEERING_POLICY_OVERRIDES, /^- /);
+  assert.match(ENGINEERING_POLICY_OVERRIDES, /[Oo]verride/);
 });
 
 test("search guidance names the registered fd and rg tools", () => {
