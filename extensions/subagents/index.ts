@@ -750,6 +750,11 @@ export default function (pi: ExtensionAPI) {
       const manager = await getManager();
       await runTool(getRuntime(), manager.send(id, text));
     },
+    abort: (id) => {
+      // Fire-and-forget by design: the read model runs it detached and the
+      // resulting settle arrives through the same subscription as any turn.
+      void getManager().then((manager) => manager.view.requestAbort(id));
+    },
     spawn: async (options) => {
       const manager = await getManager();
       const ctx = sessionContext;

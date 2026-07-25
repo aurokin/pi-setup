@@ -17,10 +17,11 @@ export type RuntimeCommand =
     }
   | { readonly action: "pi" }
   | { readonly action: "status" }
+  | { readonly action: "interrupt" }
   | { readonly action: "error"; readonly message: string };
 
 const USAGE =
-  "Usage: /runtime claude [--model <id>] [--effort <level>] | /runtime pi | /runtime status";
+  "Usage: /runtime claude [--model <id>] [--effort <level>] | /runtime pi | /runtime interrupt | /runtime status";
 
 function isEffort(value: string): value is ReasoningEffort {
   return (REASONING_EFFORTS as readonly string[]).includes(value);
@@ -32,10 +33,13 @@ export function parseRuntimeCommand(rawArgs: string): RuntimeCommand {
   // session's model based on hidden state is a bad thing to type by accident.
   const [subcommand, ...rest] = tokens;
   if (!subcommand || subcommand === "status") return { action: "status" };
-  if (subcommand === "pi") {
+  if (subcommand === "pi" || subcommand === "interrupt") {
     if (rest.length > 0)
-      return { action: "error", message: `"/runtime pi" takes no options.` };
-    return { action: "pi" };
+      return {
+        action: "error",
+        message: `"/runtime ${subcommand}" takes no options.`,
+      };
+    return { action: subcommand === "pi" ? "pi" : "interrupt" };
   }
   if (subcommand !== "claude") {
     return {

@@ -127,3 +127,11 @@ test("a handoff with no turns says so instead of implying lost work", () => {
   assert.match(summary, /ran no turns/);
   assert.doesNotMatch(summary, /not in your context/);
 });
+
+test("interrupt is a command because the interrupt key cannot reach us", () => {
+  // Returning "handled" from the input hook means pi never starts a turn, so
+  // its interrupt key has nothing to cancel, and the extension API exposes no
+  // interrupt event. Verified live: Escape leaves the Claude turn running.
+  assert.deepEqual(parseRuntimeCommand("interrupt"), { action: "interrupt" });
+  assert.equal(parseRuntimeCommand("interrupt --all").action, "error");
+});

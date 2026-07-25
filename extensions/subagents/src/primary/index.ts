@@ -41,6 +41,8 @@ export interface PrimaryRuntimeDeps {
     readonly cwd: string;
   }) => Promise<SubagentSnapshot>;
   readonly send: (id: string, text: string) => Promise<void>;
+  /** Fire-and-forget abort, for `/runtime interrupt`. */
+  readonly abort: (id: string) => void;
   readonly ui: () => ExtensionUIContext | undefined;
 }
 
@@ -50,6 +52,8 @@ export function registerPrimaryRuntime(
 ) {
   const state = initialState();
   let unsubscribe: (() => void) | undefined;
+  /** Live snapshot of the primary session, for the busy indicator. */
+  let isRunning = () => false;
 
   const setStatus = () => {
     const ui = deps.ui();
@@ -58,9 +62,14 @@ export function registerPrimaryRuntime(
       ui.setStatus("primary-runtime", undefined);
       return;
     }
+    // pi shows no spinner for a turn it never started, so without this the
+    // screen looks identical whether Claude is thinking or idle.
+    const label = `claude/${state.model ?? "default"}`;
     ui.setStatus(
       "primary-runtime",
-      ui.theme.fg("accent", `claude/${state.model ?? "default"}`),
+      isRunning()
+        ? ui.theme.fg("accent", `${label} · working… (/runtime interrupt)`)
+        : ui.theme.fg("accent", label),
     );
   };
 
@@ -68,9 +77,12 @@ export function registerPrimaryRuntime(
   const watch = async (id: string) => {
     const manager = await deps.getManager();
     unsubscribe?.();
+    isRunning = () => manager.view.get(id)?.status === "running";
     let lastSeen = "";
     unsubscribe = manager.view.subscribeTo(id, () => {
       const snap = manager.view.get(id);
+      // Every change refreshes the indicator, including the run starting.
+      setStatus();
       if (!snap || snap.status === "running") return;
       const text = snap.finalText ?? "";
       if (!text || text === lastSeen) return;
@@ -142,6 +154,19 @@ export function registerPrimaryRuntime(
         case "status":
           ctx.ui?.notify(describeState(state), "info");
           return;
+        case "interrupt": {
+          // pi's own interrupt key cannot reach here: returning "handled" from
+          // the input hook means pi never started a turn to cancel, and its
+          // extension API exposes no interrupt event. A command is the only
+          // path, and commands keep working while Claude is primary.
+          if (!state.sessionId || !isRunning()) {
+            ctx.ui?.notify("Nothing is running to interrupt.", "info");
+            return;
+          }
+          deps.abort(state.sessionId);
+          ctx.ui?.notify("Interrupting the Claude turn…", "info");
+          return;
+        }
         case "pi":
           await deactivate(ctx);
           return;
