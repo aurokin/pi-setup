@@ -53,10 +53,12 @@ export function latestGoal(entries: readonly unknown[]): Goal | undefined {
       continue;
     }
     const parsed = parse(record.data);
-    // A version we do not understand stops the scan rather than silently
-    // reverting to an older state that a newer entry has already superseded.
-    if (parsed === "unknown") return undefined;
-    found = parsed;
+    // An entry this version cannot read means the state at that point is
+    // unknown, so the older goal it superseded is not trustworthy either — but
+    // the scan continues, because a *newer* entry it can read supersedes the
+    // unreadable one in turn. Stopping here would let one hand-edited or
+    // downgraded entry mask every goal set after it, forever.
+    found = parsed === "unknown" ? undefined : parsed;
   }
   return found;
 }

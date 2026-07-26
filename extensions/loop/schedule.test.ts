@@ -216,3 +216,18 @@ test("a rejected loop does not consume an id", () => {
   assert.ok("error" in rejected);
   assert.equal(registry.nextId(), "loop-1");
 });
+
+test("only one loop fires per sweep, even when several are due", () => {
+  // `busy` is a snapshot taken before any of them ran. Firing every due loop
+  // against it queues the second and third behind the turn the first started —
+  // stacking exactly what the scheduler exists to prevent.
+  const registry = new LoopRegistry();
+  registry.add(loop({ id: "loop-1" }));
+  registry.add(loop({ id: "loop-2" }));
+  registry.add(loop({ id: "loop-3" }));
+
+  const { fire } = registry.advance(T0 + MIN_INTERVAL_MS, false);
+  assert.equal(fire.length, 1);
+  assert.equal(registry.get("loop-2")?.skipped, 1);
+  assert.equal(registry.get("loop-3")?.skipped, 1);
+});

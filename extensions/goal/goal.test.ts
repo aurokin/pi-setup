@@ -187,3 +187,26 @@ test("a goal is stored trimmed", () => {
   assert.ok(!("error" in created));
   assert.equal(created.text, "ship it");
 });
+
+test("a newer goal supersedes an older entry this version cannot read", () => {
+  // Stopping the scan at an unreadable entry would let one hand-edited or
+  // downgraded line mask every goal set after it, forever.
+  const restored = latestGoal([
+    entry(goal()),
+    { type: "custom", customType: GOAL_ENTRY_TYPE, data: { version: 99 } },
+    entry(goal({ text: "the newer goal" })),
+  ]);
+  assert.equal(restored?.text, "the newer goal");
+});
+
+test("an unreadable entry still invalidates the goal it superseded", () => {
+  // The state at that point is unknown, so the older goal is not trustworthy
+  // either — it is only safe to trust an entry that comes after.
+  assert.equal(
+    latestGoal([
+      entry(goal()),
+      { type: "custom", customType: GOAL_ENTRY_TYPE, data: { version: 99 } },
+    ]),
+    undefined,
+  );
+});

@@ -64,7 +64,12 @@ export class LoopRegistry {
     const fire: Loop[] = [];
     const expired: Loop[] = [];
     for (const [id, loop] of this.#loops) {
-      const action = tick(loop, now, busy);
+      // At most one loop fires per sweep. `busy` is a snapshot taken before any
+      // of them ran, so firing every due loop against it would queue the second
+      // and third behind the turn the first just started — stacking the prompts
+      // the scheduler exists to keep from stacking. The rest are skipped, which
+      // is what they would have been had the snapshot been taken a moment later.
+      const action = tick(loop, now, busy || fire.length > 0);
       switch (action.kind) {
         case "idle":
           break;

@@ -76,8 +76,25 @@ export default function loopExtension(pi: ExtensionAPI) {
     timer.unref?.();
   };
 
-  pi.on("session_start", async (_event, ctx) => {
+  /**
+   * A loop belongs to the session that started it.
+   *
+   * `/new`, `/resume`, and `/fork` all keep the process alive, so without this
+   * the old session's loops keep sweeping and eventually inject a prompt into a
+   * conversation that never asked for it — the same failure that made
+   * persisting loops a bad idea, reached from inside one process.
+   *
+   * `startup` has nothing to clear, and `reload` re-instantiates the extension
+   * with fresh state anyway.
+   */
+  pi.on("session_start", async (event, ctx) => {
     context = ctx;
+    if (event.reason === "startup" || event.reason === "reload") return;
+    const abandoned = registry.clear();
+    stopSweeping();
+    if (abandoned > 0) {
+      say(pi, `Stopped ${abandoned} loop(s) with the previous session.`);
+    }
   });
 
   // Timers do not survive a process, and loops are not persisted, so shutdown
