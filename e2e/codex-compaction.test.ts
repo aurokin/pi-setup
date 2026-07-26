@@ -6,15 +6,28 @@
  * opaque, and "did the context actually survive" cannot be asserted against a
  * mock. Unit tests cover the shapes; only these cover the claim.
  *
- * They skip rather than fail when codex auth is absent, so `npm test` stays
- * green on a machine that has never logged in.
+ * They skip rather than fail when codex auth is absent, so a machine that has
+ * never logged in still reports green.
+ *
+ * They live here rather than beside the extension because they are not unit
+ * tests: they cost money, need credentials, and fail for reasons that have
+ * nothing to do with this repo. `npm test` must stay hermetic so that a red
+ * result always means a real regression.
+ *
+ * This file is also the only detector for the `remote_compaction_v2` beta flag
+ * being withdrawn — see `extensions/codex-compaction/docs/design.md`. That is
+ * a thing which changes on OpenAI's schedule, not on ours, so run it
+ * periodically rather than only when this code changes.
  */
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readCodexCredentials } from "./src/auth.ts";
-import { requestCompaction } from "./src/client.ts";
-import { swapArtifacts, markSummary } from "./src/artifact-swap.ts";
+import { readCodexCredentials } from "../extensions/codex-compaction/src/auth.ts";
+import { requestCompaction } from "../extensions/codex-compaction/src/client.ts";
+import {
+  swapArtifacts,
+  markSummary,
+} from "../extensions/codex-compaction/src/artifact-swap.ts";
 
 const MODEL = "gpt-5.6-sol";
 const UNAVAILABLE = "openai-codex auth is not configured on this machine";

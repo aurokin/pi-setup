@@ -34,7 +34,9 @@ Measured against the live service before any of this was written:
 | Control, no artifact | 0/6 — "I don't have access to any earlier conversation" |
 | Replay cost | 192 input tokens standing in for six messages |
 
-`live.test.ts` keeps those claims honest and skips when codex auth is absent.
+`e2e/codex-compaction.test.ts` keeps those claims honest and skips when codex
+auth is absent. It lives outside `npm test` because it costs money and fails for
+reasons that have nothing to do with this repo.
 
 ## Why the payload is snapshotted, not rebuilt
 
@@ -145,10 +147,10 @@ summaries. Nothing errors, nothing appears in the UI, and the only symptom is
 recall quietly getting worse. **This extension can stop working entirely and
 look exactly like it is working.**
 
-`live.test.ts` is the canary, and it is the *only* one:
+`e2e/codex-compaction.test.ts` is the canary, and it is the *only* one:
 
 ```
-npm test --prefix extensions/codex-compaction     # skips silently without codex auth
+npm run test:e2e     # skips silently without codex auth
 ```
 
 Because the thing being watched changes on OpenAI's schedule and not on ours,

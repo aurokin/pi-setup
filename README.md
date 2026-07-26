@@ -49,9 +49,15 @@ taking from other agents.
 npm install                   # root dependencies
 npm run install:extensions    # per-extension dependencies (required)
 npm run check                 # typecheck
-npm test                      # unit tests
+npm test                      # unit tests — hermetic, ~25s
+npm run test:e2e              # live tests — real pi + real provider, ~2min, costs money
 npm run format                # prettier
 ```
+
+`npm test` never touches the network, so a red result there is always a real
+regression. Everything that needs credentials or a running pi lives in `e2e/`,
+including the only detector for the codex compaction beta flag being withdrawn
+— worth running on a schedule rather than only on change.
 
 Each extension under `extensions/` is its own npm package with its own lockfile, so the root install alone is not enough.
 

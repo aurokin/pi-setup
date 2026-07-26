@@ -20,6 +20,7 @@
     "install:extensions": "for d in extensions/*/; do if [ -f \"$d/package.json\" ]; then npm install --prefix \"$d\" || exit 1; fi; done",
     "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"*.json\"",
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"*.json\"",
-    "test": "node --test --experimental-strip-types extensions/*/*.test.ts && npm --prefix extensions/file-search test"
+    "test": "node --test --experimental-strip-types extensions/*/*.test.ts && npm --prefix extensions/file-search test",
+    "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts"
   }
 }

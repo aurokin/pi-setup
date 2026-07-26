@@ -3,7 +3,12 @@
 Design notes for things this setup does not have yet, salvaged from the retired
 `pi-agent-runtime` repo. Each entry is here because the thinking still applies —
 the parts that were superseded by shipped extensions were dropped rather than
-carried.
+carried, and entries get deleted as they ship rather than annotated as done.
+
+Shipped since this file was written: persisted goals, as `extensions/goal`. It
+kept the part worth copying — the model may only report `complete` or `blocked`,
+while set, pause, resume, and clear stay the user's — and dropped the budget and
+token accounting, which had no consumer here.
 
 Two things stayed behind deliberately. The managed-runtime sandbox work
 (Bubblewrap namespaces, credential leasing, ACL-level write evidence) was
@@ -67,17 +72,13 @@ repeated failures — rather than only on request, and uses a different model
 family from the main session. We have the role; the trigger is what is missing.
 The constraint that makes it tolerable is not slowing down trivial edits.
 
-**Persisted goals.** Codex `/goal` keeps an objective with status, budget, and
-token/time accounting across turns. The part worth copying is the narrow model
-authority: the model may mark a goal `complete` or strictly `blocked`, while
-pause, resume, clear, and the budget-limited states belong to the user. Auto
-continuation stops in every one of those states.
-
-**Background jobs with wakeup.** Persist each job with id, status, summary,
-output path, model, cwd, timestamps. Cap what the model sees and keep the full
-output on disk. Wake the agent with a short notification on completion or
-failure rather than polling. This partly overlaps what `background-terminals`
-and `workflows` already do.
+**Background jobs that outlive the process.** `background-terminals` already
+does the wakeup half — it settles a job and delivers the result as a follow-up
+rather than making the model poll. What is missing is durability: persist each
+job with id, status, summary, output path, model, cwd, and timestamps, cap what
+the model sees, keep the full output on disk. `/loop` declined the same problem
+for the same reason (a revived job has no obviously correct session to report
+into), so this needs an answer to that before it needs code.
 
 **Plan mode.** Pi ships an upstream plan-mode extension for read-only planning
 with an explicit execute handoff; adapting it beats writing one.
@@ -91,9 +92,8 @@ References that are public: `~/code/upstream/codex/codex-rs/ext/goal/`,
   message, a hidden context item, or a file-backed artifact referenced by path?
   (`/btw` currently answers this by keeping output out of the parent thread
   entirely, which is not obviously right for every role.)
-- Should `/goal` start as JSON files in an extension, or wait for a real
-  storage layer?
 - Should background jobs wake only the UI, or enqueue a model-visible message
-  that can trigger automatic continuation?
+  that can trigger automatic continuation? (`background-terminals` answers this
+  with a follow-up message; whether that generalises to durable jobs is open.)
 - Should `/handoff-lite` become `/handoff` if a model-generated version is
   built, or keep separate names for the cheap and the generated variants?
