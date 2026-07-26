@@ -29,7 +29,7 @@ A child's report is evidence, not a conclusion. Before you act on a claim or rel
 
 ## Model roster
 
-Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task difficulty, medium is the usual default. Never *pick* `max`, even where a harness offers it. Inheritance is the exception: a pi child that omits `reasoning_effort` stays at the parent's level even when that is `max`, because that level is the user's setting rather than your choice.
+Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task difficulty, medium is the usual default. Never choose `max` yourself, even where a harness offers it. `max` is the user's to pick: fine when they ask for it, and fine when a pi child inherits it from a session already running there.
 
 | Model | Role |
 | --- | --- |
@@ -57,7 +57,7 @@ Pi can use any model shown by `pi --list-models`. Prefer `provider/model-id`; a 
 | `openai-codex/gpt-5.6-sol` | by difficulty |
 | `opencode/claude-fable-5` | `medium`, and only when the user names fable |
 
-**Thinking budgets:** `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. These map directly to pi thinking levels. Do not name `max` yourself; inheriting it from the parent is fine.
+**Thinking budgets:** `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. These map directly to pi thinking levels. Do not reach for `max` on your own; asked for or inherited, it is fine.
 
 ## Claude Code Harness
 
