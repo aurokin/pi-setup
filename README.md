@@ -50,7 +50,7 @@ npm install                   # root dependencies
 npm run install:extensions    # per-extension dependencies (required)
 npm run check                 # typecheck
 npm test                      # unit tests — hermetic, ~25s
-npm run test:e2e              # live tests — real pi + real provider, ~2min, costs money
+npm run test:e2e              # live tests — real pi + real provider, ~3min, costs money
 npm run format                # prettier
 ```
 

@@ -20,10 +20,16 @@ import {
   ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import type { RoleName } from "../shared/roles.ts";
-import type { ParentContext, SpawnTask } from "./src/domain.ts";
-import { SubagentManager } from "./src/manager.ts";
-import { createSubagentRuntime, runTool } from "./src/runtime.ts";
+import type { RoleName } from "../extensions/shared/roles.ts";
+import type {
+  ParentContext,
+  SpawnTask,
+} from "../extensions/subagents/src/domain.ts";
+import { SubagentManager } from "../extensions/subagents/src/manager.ts";
+import {
+  createSubagentRuntime,
+  runTool,
+} from "../extensions/subagents/src/runtime.ts";
 
 /** Cheap, and the one the session itself defaults to. */
 const MODEL = "openai-codex/gpt-5.4-mini";

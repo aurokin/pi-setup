@@ -13,11 +13,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Effect } from "effect";
-import { isModelVisible } from "./src/by-the-way.ts";
-import { claudeBackend } from "./src/backends/claude.ts";
-import type { ParentContext, SpawnTask } from "./src/domain.ts";
-import { MAX_RUNNING, SubagentManager } from "./src/manager.ts";
-import { createSubagentRuntime, runTool } from "./src/runtime.ts";
+import { isModelVisible } from "../extensions/subagents/src/by-the-way.ts";
+import { claudeBackend } from "../extensions/subagents/src/backends/claude.ts";
+import type {
+  ParentContext,
+  SpawnTask,
+} from "../extensions/subagents/src/domain.ts";
+import {
+  MAX_RUNNING,
+  SubagentManager,
+} from "../extensions/subagents/src/manager.ts";
+import {
+  createSubagentRuntime,
+  runTool,
+} from "../extensions/subagents/src/runtime.ts";
 
 const parent: ParentContext = {
   parentCwd: process.cwd(),
