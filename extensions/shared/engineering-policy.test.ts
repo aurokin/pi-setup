@@ -82,6 +82,19 @@ test("the destructive-git rule holds for a child that cannot ask", () => {
     assert.ok(rule.includes(verb), `missing ${verb}`);
 });
 
+test("scratch has a destination, and deliverables are carved out of it", () => {
+  // Rule 1 grants "writing your own report or output file is always in scope"
+  // without saying where, which lands the file in the user's repo. This rule is
+  // that grant's destination, so it has to name a root that always resolves and
+  // it has to exclude the file the user actually asked for.
+  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("scratch"));
+  assert.ok(rule);
+  assert.match(rule, /PI_CODING_AGENT_DIR:-~\/\.pi\/agent/);
+  assert.match(rule, /not scratch/);
+  // Never a repo-relative path: that is the failure this rule exists to prevent.
+  assert.doesNotMatch(rule, /\.\/|\bdocs\/|\bplans\//);
+});
+
 test("the concision rule names the waste rather than asking for less", () => {
   // Pi's base prompt already says "Be concise in your responses" and it does
   // not bite; a second copy would be dead weight under this file's own rule.
