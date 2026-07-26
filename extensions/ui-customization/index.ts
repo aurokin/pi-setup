@@ -20,8 +20,8 @@ import {
   isGitInfoState,
   isModelInfoState,
 } from "../shared/dashboard-state.ts";
+import { accentRamp, parseTruecolor, type Rgb } from "./src/accent-ramp.ts";
 
-type Rgb = [number, number, number];
 interface RenderableNode {
   children?: RenderableNode[];
   invalidate(): void;
@@ -34,14 +34,6 @@ interface DashboardTui extends RenderableNode {
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const PALETTE: Rgb[] = [
-  [22, 83, 189],
-  [48, 129, 247],
-  [93, 171, 255],
-  [151, 205, 255],
-  [93, 171, 255],
-  [48, 129, 247],
-];
 const TITLE_LINES = [
   "  ██████╗  ██╗ ",
   "  ██╔══██╗ ██║ ",
@@ -72,14 +64,14 @@ function mix(a: number, b: number, amount: number) {
   return Math.round(a + (b - a) * amount);
 }
 
-function sampleGradient(position: number) {
+function sampleGradient(palette: Rgb[], position: number) {
   const wrapped = ((position % 1) + 1) % 1;
-  const scaled = wrapped * PALETTE.length;
+  const scaled = wrapped * palette.length;
   const index = Math.floor(scaled);
-  const nextIndex = (index + 1) % PALETTE.length;
+  const nextIndex = (index + 1) % palette.length;
   const amount = scaled - index;
-  const start = PALETTE[index]!;
-  const end = PALETTE[nextIndex]!;
+  const start = palette[index]!;
+  const end = palette[nextIndex]!;
 
   return [
     mix(start[0], end[0], amount),
@@ -92,7 +84,7 @@ function foreground([red, green, blue]: Rgb, text: string) {
   return `\x1b[38;2;${red};${green};${blue}m${text}${RESET}`;
 }
 
-function gradientText(text: string, phase: number) {
+function gradientText(palette: Rgb[], text: string, phase: number) {
   const characters = [...text];
   const span = Math.max(characters.length - 1, 1);
 
@@ -100,7 +92,7 @@ function gradientText(text: string, phase: number) {
     .map((character, index) =>
       character === " "
         ? character
-        : foreground(sampleGradient(index / span + phase), character),
+        : foreground(sampleGradient(palette, index / span + phase), character),
     )
     .join("");
 }
@@ -220,18 +212,30 @@ export default function uiCustomization(pi: ExtensionAPI) {
   function install(ctx: ExtensionContext) {
     if (ctx.mode !== "tui") return;
 
-    ctx.ui.setHeader((tui) => {
+    ctx.ui.setHeader((tui, theme) => {
       activeTui = tui;
       requestRender = () => tui.requestRender();
       scheduleThemeRemoval(tui);
 
       return {
         render(width: number) {
+          // Read per render rather than per install: /settings can change the
+          // theme without the header being rebuilt, and a logo that keeps the
+          // old palette until restart is the drift this replaced.
+          const accent = parseTruecolor(theme.getFgAnsi("accent"));
+          // Without a truecolor accent there is nothing to interpolate
+          // between, so the logo is painted flat in the theme's own accent —
+          // which is what a 256-colour terminal should get anyway.
+          const paint = accent
+            ? (text: string, phase: number) =>
+                gradientText(accentRamp(accent), text, phase)
+            : (text: string) => theme.fg("accent", text);
+
           const art = TITLE_LINES.map((line, row) =>
-            center(gradientText(line, row * 0.045), width),
+            center(paint(line, row * 0.045), width),
           );
           const subtitle = center(
-            `${BOLD}${gradientText(title, 0.18)}${RESET}`,
+            `${BOLD}${paint(title, 0.18)}${RESET}`,
             width,
           );
           return ["", ...art, subtitle, ""];

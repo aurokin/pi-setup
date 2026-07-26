@@ -8,7 +8,6 @@ Forked from [davis7dotsh/my-pi-setup](https://github.com/davis7dotsh/my-pi-setup
 
 Inherited from upstream:
 
-- a github dark default theme (still here, not active)
 - firecrawl tools for searching and scraping
 - a bottom bar with the info I want to see
 - background terminals + UI to manage them
