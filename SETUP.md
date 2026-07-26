@@ -1,10 +1,10 @@
 # Setup
 
-Clone or copy this repository to `~/.pi/agent`, then install its dependencies:
+Clone this repo somewhere of your own and install its dependencies:
 
 ```sh
-git clone git@github.com:aurokin/pi-setup.git ~/.pi/agent
-cd ~/.pi/agent
+git clone git@github.com:aurokin/pi-setup.git ~/code/pi-setup
+cd ~/code/pi-setup
 npm install
 npm run install:extensions
 ```
@@ -13,6 +13,32 @@ Both installs are required. Every directory under `extensions/` is its own npm
 package with its own lockfile, so the root `npm install` does not cover them —
 skipping the second command leaves `effect` and the Claude Agent SDK missing and
 `npm run check` fails.
+
+## Linking it into pi
+
+Pi looks for `extensions/`, `themes/`, and `skills/` under `~/.pi/agent`, so
+each is pointed at this checkout:
+
+```sh
+ln -s ~/code/pi-setup/extensions ~/.pi/agent/extensions
+ln -s ~/code/pi-setup/themes     ~/.pi/agent/themes
+```
+
+Skills are linked one at a time, because `~/.pi/agent/skills` is shared — it
+also holds skills that came from elsewhere, so it cannot be a single symlink:
+
+```sh
+mkdir -p ~/.pi/agent/skills
+ln -s ~/code/pi-setup/skills/background-terminals ~/.pi/agent/skills/
+ln -s ~/code/pi-setup/skills/subagents            ~/.pi/agent/skills/
+```
+
+Nothing in `~/.agents/skills` needs linking: pi reads that directory on its own,
+alongside `~/.pi/agent/skills`.
+
+This is symlinks rather than cloning straight into `~/.pi/agent` because the
+agent directory is not only config — `auth.json`, `sessions/`, and
+`models-store.json` live there too, and none of them belong in a public repo.
 
 ## Firecrawl
 
@@ -36,7 +62,7 @@ Add the included theme to `~/.pi/agent/settings.json` while keeping your existin
 
 ```json
 {
-  "theme": "github-dark-default"
+  "theme": "tokyo-night"
 }
 ```
 

@@ -1,6 +1,6 @@
 # pi setup
 
-My personal [pi](https://github.com/earendil-works/pi-mono) coding-agent configuration: extensions, skills, prompts, and theme.
+My personal [pi](https://github.com/earendil-works/pi-mono) coding-agent configuration: extensions, skills, and theme.
 
 Forked from [davis7dotsh/my-pi-setup](https://github.com/davis7dotsh/my-pi-setup) — nearly all of the extension code here is his work, and upstream is tracked so his improvements keep flowing in.
 
