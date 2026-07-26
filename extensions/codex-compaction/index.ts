@@ -24,12 +24,12 @@
  */
 
 import {
-  DEFAULT_COMPACTION_SETTINGS,
   generateSummaryWithUsage,
   type ExtensionAPI,
   type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { readCodexCredentials } from "./src/auth.ts";
+import { resolveReserveTokens } from "./src/settings.ts";
 import { DEFAULT_BASE_URL, requestCompaction } from "./src/client.ts";
 import { markSummary, swapArtifacts } from "./src/artifact-swap.ts";
 import {
@@ -155,7 +155,10 @@ export default function codexCompaction(pi: ExtensionAPI) {
     const summaryPromise = generateSummaryWithUsage(
       preparation.messagesToSummarize,
       model,
-      DEFAULT_COMPACTION_SETTINGS.reserveTokens,
+      // The user's setting, not the default: `compaction.reserveTokens` is the
+      // only lever over summary length, and it has to keep working on the path
+      // that replaced pi's.
+      resolveReserveTokens(ctx),
       auth.apiKey,
       auth.headers,
       signal,

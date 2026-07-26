@@ -133,12 +133,35 @@ command line. `accountId` is stored by pi directly, so no JWT decoding is needed
 
 ## Known risks
 
-**The beta flag is undocumented.** `remote_compaction_v2` does not appear in
-codex's source — codex takes `beta_features_header` from config — so it was
-discovered empirically. It is a server-side gate that can be renamed or withdrawn
-without warning, and when that happens this extension silently returns to text
-summaries. That is the intended failure, but it means the live tests are the only
-thing that will notice.
+### The beta flag is undocumented, and its failure is invisible
+
+`remote_compaction_v2` does not appear in codex's source — codex takes
+`beta_features_header` from config — so it was discovered empirically. It is a
+server-side gate that OpenAI can rename or withdraw without warning or notice.
+
+The failure mode is the problem. Everything here fails soft on purpose, so a
+withdrawn flag does not break anything: compaction just goes back to text
+summaries. Nothing errors, nothing appears in the UI, and the only symptom is
+recall quietly getting worse. **This extension can stop working entirely and
+look exactly like it is working.**
+
+`live.test.ts` is the canary, and it is the *only* one:
+
+```
+npm test --prefix extensions/codex-compaction     # skips silently without codex auth
+```
+
+Because the thing being watched changes on OpenAI's schedule and not on ours,
+running it only when this code changes is the wrong trigger — a green suite
+after an untouched month says nothing. Run it periodically, and specifically
+before trusting recall on a long session. If it starts skipping rather than
+passing, that is codex auth missing, not the flag holding.
+
+When it does fail: check whether a current codex release still sends
+`compaction_trigger` and what feature name it gates on, then update
+`REMOTE_COMPACTION_FEATURE`. If the protocol is gone rather than renamed, this
+extension has nothing left to do and should be removed rather than left in place
+looking active.
 
 **Retention is not implemented.** Codex additionally keeps recent
 `user`/`developer`/`system` messages beside the artifact, truncated to
@@ -147,9 +170,39 @@ chooses what to keep via `firstKeptEntryId`, so retention is pi's decision and
 the artifact simply replaces the summary. Worth revisiting if recall at the
 boundary disappoints.
 
-**Cost is not free.** Compaction now makes two model calls instead of one. On the
-published benchmark for the extension this was modelled on, the server-side path
-scored 78% exact recall against pi's 48% — but spent 4.58× the compaction output
-tokens and 2.52× the cost, with a 0.95 correlation between artifact size and
-accuracy. Read that as "it wins partly by spending more," not purely as a better
-representation.
+### Cost is not free, and the obvious lever is coupled
+
+Compaction now makes two model calls instead of one. On the published benchmark
+for the extension this was modelled on, the server-side path scored 78% exact
+recall against pi's 48% — but spent 4.58× the compaction output tokens and 2.52×
+the cost, with a 0.95 correlation between artifact size and accuracy. Read that
+as "it wins partly by spending more," not purely as a better representation.
+
+The lever is `compaction.reserveTokens`, and reading pi's source rather than
+inferring from the benchmark, it does **two** things
+(`core/compaction/compaction.js`):
+
+| | |
+| --- | --- |
+| `shouldCompact` | compacts once context passes `contextWindow - reserveTokens` |
+| `generateSummaryWithUsage` | caps the summary at `0.8 * reserveTokens` |
+
+So raising it buys a longer summary *and* compacts earlier — more head-room per
+compaction, but more compactions. Lowering it does the reverse. There is no
+setting that lengthens the summary alone, and none at all that sizes the
+artifact: the artifact's size is the server's decision, which is why the
+correlation the benchmark found is not something either side can tune.
+
+This extension resolves `reserveTokens` through `SettingsManager` rather than
+`DEFAULT_COMPACTION_SETTINGS`, so the lever still moves the summary once the
+extension is installed. Hardcoding the default was the earlier behaviour and
+made the setting silently inert on exactly the path that replaced pi's.
+
+Honest summary of the options, since only one of them is real:
+
+- **Turn the extension off** for a session where recall does not matter. Nothing
+  here is load-bearing; pi compacts normally without it.
+- **Tune `reserveTokens`** knowing it is a trade, not a win.
+- Skipping the text summary to save the second call is *not* on offer. The
+  summary is what makes a session readable, forkable, and usable on a non-codex
+  model, and it is the fallback for every soft failure above.

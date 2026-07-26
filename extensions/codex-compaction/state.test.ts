@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DEFAULT_COMPACTION_SETTINGS } from "@earendil-works/pi-coding-agent";
 import { readCodexCredentials } from "./src/auth.ts";
+import { resolveReserveTokens } from "./src/settings.ts";
 import {
   accountFingerprint,
   backendKey,
@@ -201,4 +203,50 @@ test("the persisted key carries no account identifier", () => {
   );
   assert.notEqual(accountFingerprint("a"), accountFingerprint("b"));
   assert.equal(accountFingerprint("a"), accountFingerprint("a"));
+});
+
+// --- settings -----------------------------------------------------------------
+
+function projectDir(settings: unknown): string {
+  const dir = mkdtempSync(join(tmpdir(), "codex-compaction-settings-"));
+  mkdirSync(join(dir, ".pi"));
+  writeFileSync(
+    join(dir, ".pi", "settings.json"),
+    typeof settings === "string" ? settings : JSON.stringify(settings),
+  );
+  return dir;
+}
+
+test("the summary budget follows the user's setting, not the default", () => {
+  // `compaction.reserveTokens` caps the summary at 0.8x its value. Hardcoding
+  // the default here would leave the setting inert on the one path that
+  // replaced pi's own compaction.
+  const cwd = projectDir({ compaction: { reserveTokens: 40000 } });
+  assert.equal(
+    resolveReserveTokens({ cwd, isProjectTrusted: () => true }),
+    40000,
+  );
+});
+
+test("project settings are ignored until the project is trusted", () => {
+  // Trust is pi's rule about who may configure a checkout. Reading these
+  // ourselves would let an untrusted repo set the budget for a path pi has
+  // deliberately gated.
+  const cwd = projectDir({ compaction: { reserveTokens: 40000 } });
+  assert.equal(
+    resolveReserveTokens({ cwd, isProjectTrusted: () => false }),
+    DEFAULT_COMPACTION_SETTINGS.reserveTokens,
+  );
+});
+
+test("an unusable setting falls back rather than asking for a zero-token summary", () => {
+  for (const broken of ["{ not json", { compaction: { reserveTokens: 0 } }]) {
+    assert.equal(
+      resolveReserveTokens({
+        cwd: projectDir(broken),
+        isProjectTrusted: () => true,
+      }),
+      DEFAULT_COMPACTION_SETTINGS.reserveTokens,
+    );
+  }
 });
