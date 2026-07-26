@@ -31,10 +31,29 @@ also holds skills that came from elsewhere, so it cannot be a single symlink:
 mkdir -p ~/.pi/agent/skills
 ln -s ~/code/pi-setup/skills/background-terminals ~/.pi/agent/skills/
 ln -s ~/code/pi-setup/skills/subagents            ~/.pi/agent/skills/
+ln -s ~/code/pi-setup/skills/linearis             ~/.pi/agent/skills/
 ```
 
 Nothing in `~/.agents/skills` needs linking: pi reads that directory on its own,
 alongside `~/.pi/agent/skills`.
+
+`skills/linearis` is a modified copy of
+[linearis-oss/linearis](https://github.com/linearis-oss/linearis)'
+`skills/linearis/SKILL.md`, linked here rather than installed with
+`npx skills add`. That command fans a skill out to every agent's skill
+directory, and this one is wanted for pi alone — pi has no MCP, so it drives
+Linear through a CLI. See `skills/linearis/PROVENANCE.md` for what was changed
+and how to re-base it on a newer upstream.
+
+Install the CLI with `npm install -g linearis` (Node >= 22), or pin it through
+whatever version manager you already use.
+
+**This skill assumes a secret wrapper that is not in this repo.** It tells the
+agent to run every command as `with-secret linear -- linearis …`, which injects
+`LINEAR_API_TOKEN` for one process from a password manager. If you have no such
+wrapper, edit the "Running commands" section of `SKILL.md` to drop the prefix
+and export `LINEAR_API_TOKEN` yourself — the rest of the skill is
+host-independent.
 
 This is symlinks rather than cloning straight into `~/.pi/agent` because the
 agent directory is not only config — `auth.json`, `sessions/`, and
