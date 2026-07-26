@@ -73,6 +73,34 @@ and the artifact is refused across models, because it is opaque and
 server-decrypted, so replaying one model's artifact into another is silent
 context corruption rather than an error.
 
+## Three ways this can substitute the wrong artifact
+
+Each of these swaps a good text summary for context that is wrong rather than
+merely worse, so each is guarded explicitly.
+
+**A different backend.** `before_provider_request` fires for *every* provider,
+so the provider guard lives inside the handler rather than around it. Artifacts
+are keyed by `provider/model`, not model alone: two providers can expose the
+same model id, and an artifact is opaque ciphertext bound to one ChatGPT
+account. Matching on the bare name would hand a codex artifact to a backend that
+cannot read it.
+
+**A different branch.** A snapshot describes one branch of one conversation.
+After a reload, resume, or `/tree` move, compacting before the next provider
+request would send the *previous* branch's messages for compaction and then
+substitute the result for this branch's summary — cross-branch corruption, and a
+path for one branch's content to reach another's context. Every navigation
+boundary clears the snapshot; artifacts survive, because the compaction entries
+referencing them do.
+
+**A snapshot that is behind.** A snapshot is a *request*, so it predates the
+response to it. When the cut point falls after that response — a large final
+turn that will not fit in the retained tail — the text summary covers it and an
+artifact built from the snapshot does not. Replacing the summary with that
+artifact would silently drop the newest turn from all future context. Compaction
+compares the snapshot's capture time against the messages being summarized and
+skips the artifact when anything is newer.
+
 ## Failure is always soft
 
 Every failure path falls back to pi's normal compaction: no credentials, expired

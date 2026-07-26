@@ -18,44 +18,75 @@ const artifact = {
 
 // --- state --------------------------------------------------------------------
 
-test("an artifact is only handed back to the model that produced it", () => {
-  // The artifact is opaque and decrypted server-side. Replaying one model's
-  // artifact into another model's request corrupts context without an error.
+test("an artifact is only handed back to the backend that produced it", () => {
+  // The artifact is opaque ciphertext bound to a ChatGPT account. Replaying it
+  // on another model — or another provider reselling the same model id —
+  // corrupts context without raising an error.
   const state = new CompactionState();
-  state.remember("cmp_1", artifact, "gpt-5.6-sol");
-  assert.deepEqual(state.lookup("cmp_1", "gpt-5.6-sol"), artifact);
-  assert.equal(state.lookup("cmp_1", "gpt-5.6-luna"), undefined);
+  state.remember("cmp_1", artifact, "openai-codex/gpt-5.6-sol");
+  assert.deepEqual(state.lookup("cmp_1", "openai-codex/gpt-5.6-sol"), artifact);
+  assert.equal(state.lookup("cmp_1", "openai-codex/gpt-5.6-luna"), undefined);
+  assert.equal(
+    state.lookup("cmp_1", "openrouter/gpt-5.6-sol"),
+    undefined,
+    "a different provider serving the same model id must not match",
+  );
 });
 
 test("only payloads carrying a model are snapshotted", () => {
   // The snapshot's whole job is to supply the compaction request's model and
   // tools. One without a model would build a request that cannot be sent.
   const modelless = new CompactionState();
-  modelless.recordPayload({ input: [] });
+  modelless.recordPayload({ input: [] }, "openai-codex");
   assert.equal(modelless.snapshot, undefined);
 
+  const providerless = new CompactionState();
+  providerless.recordPayload({ model: "gpt-5.6-sol", input: [] }, "");
+  assert.equal(providerless.snapshot, undefined);
+
   const state = new CompactionState();
-  state.recordPayload({ model: "gpt-5.6-sol", input: [] });
-  assert.equal(state.snapshot?.model, "gpt-5.6-sol");
+  state.recordPayload({ model: "gpt-5.6-sol", input: [] }, "openai-codex");
+  assert.equal(state.snapshot?.backend, "openai-codex/gpt-5.6-sol");
 });
 
 test("shutdown drops everything", () => {
   const state = new CompactionState();
-  state.recordPayload({ model: "m" });
-  state.remember("cmp_1", artifact, "m");
+  state.recordPayload({ model: "m" }, "openai-codex");
+  state.remember("cmp_1", artifact, "openai-codex/m");
   state.clear();
   assert.equal(state.size, 0);
   assert.equal(state.snapshot, undefined);
+});
+
+test("navigating away drops the snapshot but keeps the artifacts", () => {
+  // A snapshot describes one branch. Reusing it after a /tree move would send
+  // the previous branch's messages for compaction and then substitute the
+  // result for this branch's summary. The artifacts stay valid because the
+  // compaction entries referencing them do.
+  const state = new CompactionState();
+  state.recordPayload({ model: "m" }, "openai-codex");
+  state.remember("cmp_1", artifact, "openai-codex/m");
+  state.clearSnapshot();
+  assert.equal(state.snapshot, undefined);
+  assert.deepEqual(state.lookup("cmp_1", "openai-codex/m"), artifact);
+});
+
+test("a snapshot records when it was captured", () => {
+  // Compaction compares this against the messages it is summarizing: a request
+  // captured before them cannot have produced an artifact that covers them.
+  const state = new CompactionState();
+  state.recordPayload({ model: "m" }, "openai-codex", 1000);
+  assert.equal(state.snapshot?.capturedAt, 1000);
 });
 
 // --- persistence --------------------------------------------------------------
 
 test("details survive a round trip", () => {
   const restored = fromPersistedDetails(
-    toPersistedDetails("cmp_1", "m", artifact),
+    toPersistedDetails("cmp_1", "openai-codex/m", artifact),
   );
   assert.equal(restored?.id, "cmp_1");
-  assert.equal(restored?.model, "m");
+  assert.equal(restored?.backend, "openai-codex/m");
   assert.deepEqual(restored?.artifact, artifact);
 });
 
@@ -66,7 +97,7 @@ test("foreign or future details are ignored rather than half-read", () => {
   assert.equal(fromPersistedDetails({ artifactIndex: {} }), undefined);
   assert.equal(
     fromPersistedDetails({
-      codexCompaction: { version: 2, id: "x", model: "m", artifact },
+      codexCompaction: { version: 2, id: "x", backend: "b", artifact },
     }),
     undefined,
   );

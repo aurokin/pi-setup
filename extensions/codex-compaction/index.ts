@@ -33,6 +33,7 @@ import { readCodexCredentials } from "./src/auth.ts";
 import { DEFAULT_BASE_URL, requestCompaction } from "./src/client.ts";
 import { markSummary, swapArtifacts } from "./src/artifact-swap.ts";
 import {
+  backendKey,
   CompactionState,
   fromPersistedDetails,
   toPersistedDetails,
@@ -66,17 +67,25 @@ export default function codexCompaction(pi: ExtensionAPI) {
    * pi's own payload, with the same model, instructions, tools, and reasoning
    * config, so nothing has to be reconstructed and nothing can drift.
    */
-  pi.on("before_provider_request", async (event) => {
+  pi.on("before_provider_request", async (event, ctx) => {
+    // This hook fires for every provider, so the guard has to be here. Without
+    // it, switching to another provider that exposes the same model id would
+    // still match a stored artifact by name and replace a good text summary
+    // with ciphertext that provider cannot read.
+    const provider = ctx.model?.provider;
+    if (provider !== SUPPORTED_PROVIDER) return;
+
     const payload = event.payload;
     if (typeof payload !== "object" || payload === null) return;
     const record = payload as Record<string, unknown>;
     if (!Array.isArray(record.input)) return;
 
-    state.recordPayload(record);
+    state.recordPayload(record, provider);
 
     const model = typeof record.model === "string" ? record.model : "";
+    const backend = backendKey(provider, model);
     const { input, swapped } = swapArtifacts(record.input, (id) =>
-      state.lookup(id, model),
+      state.lookup(id, backend),
     );
     if (swapped > 0) {
       record.input = input as unknown[];
@@ -104,8 +113,31 @@ export default function codexCompaction(pi: ExtensionAPI) {
 
     const model = ctx.model;
     if (!model) return;
+    if (backendKey(model.provider, model.id) !== snapshot.backend) {
+      log(
+        pi,
+        "snapshot belongs to another backend; deferring to pi compaction",
+      );
+      return;
+    }
 
     const { preparation, customInstructions, signal } = event;
+
+    // The snapshot is a *request*, so it predates the response to it. When the
+    // cut point falls after that response — a large final turn that will not
+    // fit in the retained tail — the text summary covers it and an artifact
+    // built from this snapshot does not. Replacing the summary with that
+    // artifact would silently drop the newest turn from all future context, so
+    // the artifact is skipped and the summary stands on its own.
+    const newest = Math.max(
+      0,
+      ...preparation.messagesToSummarize.map((m) =>
+        typeof (m as { timestamp?: unknown }).timestamp === "number"
+          ? (m as { timestamp: number }).timestamp
+          : 0,
+      ),
+    );
+    const snapshotIsStale = newest > snapshot.capturedAt;
     // Pi resolves auth per model; the codex path also needs its headers, which
     // is why this is the registry call rather than a bare key lookup.
     const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
@@ -125,12 +157,16 @@ export default function codexCompaction(pi: ExtensionAPI) {
       ctx.thinkingLevel,
     );
 
-    const artifactPromise = requestCompaction({
-      payload: snapshot.payload,
-      credentials,
-      baseUrl: model.baseUrl ?? DEFAULT_BASE_URL,
-      signal,
-    });
+    const artifactPromise = snapshotIsStale
+      ? Promise.reject(
+          new Error("snapshot predates the messages being summarized"),
+        )
+      : requestCompaction({
+          payload: snapshot.payload,
+          credentials,
+          baseUrl: model.baseUrl ?? DEFAULT_BASE_URL,
+          signal,
+        });
 
     const [summaryResult, artifactResult] = await Promise.allSettled([
       summaryPromise,
@@ -161,7 +197,7 @@ export default function codexCompaction(pi: ExtensionAPI) {
 
     const { artifact } = artifactResult.value;
     const id = artifact.id ?? `cmp-${Date.now()}-${state.size}`;
-    state.remember(id, artifact, snapshot.model);
+    state.remember(id, artifact, snapshot.backend);
     log(
       pi,
       `stored artifact ${id} (${artifact.encrypted_content.length} bytes)`,
@@ -171,7 +207,7 @@ export default function codexCompaction(pi: ExtensionAPI) {
       compaction: {
         ...base,
         summary: markSummary(id, base.summary),
-        details: toPersistedDetails(id, snapshot.model, artifact),
+        details: toPersistedDetails(id, snapshot.backend, artifact),
       },
     };
   });
@@ -194,15 +230,31 @@ export default function codexCompaction(pi: ExtensionAPI) {
       );
       if (!stored) continue;
       if (state.has(stored.id)) continue;
-      state.remember(stored.id, stored.artifact, stored.model);
+      state.remember(stored.id, stored.artifact, stored.backend);
       restored += 1;
     }
     if (restored > 0)
       log(pi, `rehydrated ${restored} artifact(s) from the session`);
   };
 
-  pi.on("session_start", async (_event, ctx) => rehydrate(ctx));
-  pi.on("session_compact", async (_event, ctx) => rehydrate(ctx));
-  pi.on("session_tree", async (_event, ctx) => rehydrate(ctx));
+  /**
+   * Navigating away invalidates the captured request.
+   *
+   * The snapshot describes one branch of one conversation. After a reload,
+   * resume, or `/tree` move, compacting before the next provider request would
+   * otherwise send the *previous* branch's messages for compaction and then
+   * substitute the result for this branch's summary — cross-branch corruption,
+   * and a way for one branch's content to reach another's context.
+   *
+   * Artifacts survive, because the compaction entries referencing them do.
+   */
+  const onNavigate = (ctx: ExtensionContext) => {
+    state.clearSnapshot();
+    rehydrate(ctx);
+  };
+
+  pi.on("session_start", async (_event, ctx) => onNavigate(ctx));
+  pi.on("session_compact", async (_event, ctx) => onNavigate(ctx));
+  pi.on("session_tree", async (_event, ctx) => onNavigate(ctx));
   pi.on("session_shutdown", async () => state.clear());
 }
