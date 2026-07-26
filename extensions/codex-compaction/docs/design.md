@@ -78,12 +78,22 @@ context corruption rather than an error.
 Each of these swaps a good text summary for context that is wrong rather than
 merely worse, so each is guarded explicitly.
 
-**A different backend.** `before_provider_request` fires for *every* provider,
-so the provider guard lives inside the handler rather than around it. Artifacts
-are keyed by `provider/model`, not model alone: two providers can expose the
-same model id, and an artifact is opaque ciphertext bound to one ChatGPT
-account. Matching on the bare name would hand a codex artifact to a backend that
-cannot read it.
+**A different backend or account.** `before_provider_request` fires for *every*
+provider, so the provider guard lives inside the handler rather than around it.
+Artifacts are keyed by `provider/model#account`, because two providers can
+expose the same model id and the artifact is opaque ciphertext bound to one
+ChatGPT account. Reopening a compacted session after switching accounts must
+fall back to the text summary rather than replay something undecryptable.
+
+The account is stored as a truncated SHA-256 digest, not the id. This key is
+persisted into the session file, and `/share` uploads that file as a gist — a
+digest distinguishes accounts without publishing one.
+
+**Content that quotes a marker.** A marker only counts when it opens a line, and
+tool traffic is skipped entirely. Otherwise asking "what does ⟦codex-compaction:…⟧
+mean?" — or a tool returning session-file contents — would have that whole item
+replaced by the artifact, losing the question or the tool result. Each artifact
+also replaces at most one item, so a recurring marker cannot send it twice.
 
 **A different branch.** A snapshot describes one branch of one conversation.
 After a reload, resume, or `/tree` move, compacting before the next provider

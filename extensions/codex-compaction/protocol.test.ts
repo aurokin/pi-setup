@@ -161,3 +161,27 @@ test("[DONE] ends the stream", async () => {
   }
   assert.deepEqual(seen, ["a"]);
 });
+
+test("CRLF-delimited frames parse, since proxies emit them", () => {
+  // SSE permits \r\n\r\n. Splitting on "\n\n" alone yielded zero events, which
+  // would silently downgrade every compaction to the text summary.
+  return (async () => {
+    const seen: unknown[] = [];
+    for await (const event of sseEvents(
+      bodyOf('data: {"type":"a"}\r\n\r\ndata: {"type":"b"}\r\n\r\n'),
+    )) {
+      seen.push(event.type);
+    }
+    assert.deepEqual(seen, ["a", "b"]);
+  })();
+});
+
+test("a data: field with no space still parses", () => {
+  return (async () => {
+    const seen: unknown[] = [];
+    for await (const event of sseEvents(bodyOf('data:{"type":"a"}\n\n'))) {
+      seen.push(event.type);
+    }
+    assert.deepEqual(seen, ["a"]);
+  })();
+});

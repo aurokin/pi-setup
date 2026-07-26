@@ -12,7 +12,24 @@
  * of an artifact — the same outcome as never having had one.
  */
 
+import { createHash } from "node:crypto";
 import type { CompactionArtifact } from "./protocol.ts";
+
+/**
+ * A stable, non-identifying fingerprint of the ChatGPT account.
+ *
+ * The artifact is account-bound ciphertext, so reopening a compacted session
+ * under a different Codex account must fall back to the text summary rather
+ * than replay something that account cannot decrypt.
+ *
+ * It is hashed rather than stored raw because this value is persisted into the
+ * session file, and `/share` uploads that file as a gist. An account id would
+ * travel with it; a truncated digest is enough to tell "same account" from
+ * "different account" and carries nothing onward.
+ */
+export function accountFingerprint(accountId: string): string {
+  return createHash("sha256").update(accountId).digest("hex").slice(0, 16);
+}
 
 /**
  * An artifact is only valid for the exact backend that produced it.
@@ -43,8 +60,12 @@ export interface PayloadSnapshot {
   readonly capturedAt: number;
 }
 
-export function backendKey(provider: string, model: string): string {
-  return `${provider}/${model}`;
+export function backendKey(
+  provider: string,
+  model: string,
+  accountId: string,
+): string {
+  return `${provider}/${model}#${accountFingerprint(accountId)}`;
 }
 
 export class CompactionState {
@@ -54,14 +75,15 @@ export class CompactionState {
   recordPayload(
     payload: Readonly<Record<string, unknown>>,
     provider: string,
+    accountId: string,
     now: number = Date.now(),
   ): void {
     const model = typeof payload.model === "string" ? payload.model : "";
-    if (!model || !provider) return;
+    if (!model || !provider || !accountId) return;
     this.#snapshot = {
       payload,
       model,
-      backend: backendKey(provider, model),
+      backend: backendKey(provider, model, accountId),
       capturedAt: now,
     };
   }

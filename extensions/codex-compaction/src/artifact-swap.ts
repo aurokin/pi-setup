@@ -66,6 +66,38 @@ function itemText(item: unknown, depth = 0): string {
   return "";
 }
 
+/**
+ * A marker only counts when it opens a line.
+ *
+ * `markSummary` puts it first, so a real compaction summary always satisfies
+ * this. Quoted prose does not: asking "what does ⟦codex-compaction:cmp_1⟧
+ * mean?" would otherwise see that whole user message replaced by the artifact,
+ * losing the question. The same applies to a tool that reads the session file
+ * and hands back its contents.
+ */
+function leadingMarkerId(text: string): string | undefined {
+  for (const line of text.split("\n")) {
+    if (!line.startsWith(MARKER_PREFIX)) continue;
+    const id = extractMarkerId(line);
+    if (id) return id;
+  }
+  return undefined;
+}
+
+/** Items carrying tool traffic, which is never pi's compaction summary. */
+function isToolShaped(item: unknown): boolean {
+  if (typeof item !== "object" || item === null) return false;
+  const record = item as Record<string, unknown>;
+  const type = typeof record.type === "string" ? record.type : "";
+  const role = typeof record.role === "string" ? record.role : "";
+  return (
+    type.startsWith("function_call") ||
+    type === "tool_result" ||
+    role === "tool" ||
+    role === "toolResult"
+  );
+}
+
 export interface SwapResult {
   readonly input: readonly unknown[];
   /** Marker ids seen in the input, whether or not an artifact was available. */
@@ -85,13 +117,20 @@ export function swapArtifacts(
   lookup: (id: string) => CompactionArtifact | undefined,
 ): SwapResult {
   const seen: string[] = [];
+  const used = new Set<string>();
   let swapped = 0;
   const next = input.map((item) => {
-    const id = extractMarkerId(itemText(item));
+    if (isToolShaped(item)) return item;
+    const id = leadingMarkerId(itemText(item));
     if (!id) return item;
     seen.push(id);
+    // One artifact replaces one summary. Without this, a session that quotes
+    // its own marker twice would send the same artifact twice, which is at
+    // best wasted context and at worst a rejected request.
+    if (used.has(id)) return item;
     const artifact = lookup(id);
     if (!artifact || !isCompactionArtifact(artifact)) return item;
+    used.add(id);
     swapped += 1;
     return artifact;
   });

@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readCodexCredentials } from "./src/auth.ts";
 import {
+  accountFingerprint,
+  backendKey,
   CompactionState,
   fromPersistedDetails,
   toPersistedDetails,
@@ -23,13 +25,23 @@ test("an artifact is only handed back to the backend that produced it", () => {
   // on another model — or another provider reselling the same model id —
   // corrupts context without raising an error.
   const state = new CompactionState();
-  state.remember("cmp_1", artifact, "openai-codex/gpt-5.6-sol");
-  assert.deepEqual(state.lookup("cmp_1", "openai-codex/gpt-5.6-sol"), artifact);
-  assert.equal(state.lookup("cmp_1", "openai-codex/gpt-5.6-luna"), undefined);
+  const key = backendKey("openai-codex", "gpt-5.6-sol", "acct-a");
+  state.remember("cmp_1", artifact, key);
+  assert.deepEqual(state.lookup("cmp_1", key), artifact);
   assert.equal(
-    state.lookup("cmp_1", "openrouter/gpt-5.6-sol"),
+    state.lookup("cmp_1", backendKey("openai-codex", "gpt-5.6-luna", "acct-a")),
+    undefined,
+    "another model must not match",
+  );
+  assert.equal(
+    state.lookup("cmp_1", backendKey("openrouter", "gpt-5.6-sol", "acct-a")),
     undefined,
     "a different provider serving the same model id must not match",
+  );
+  assert.equal(
+    state.lookup("cmp_1", backendKey("openai-codex", "gpt-5.6-sol", "acct-b")),
+    undefined,
+    "the artifact is account-bound ciphertext; another account must not match",
   );
 });
 
@@ -37,21 +49,36 @@ test("only payloads carrying a model are snapshotted", () => {
   // The snapshot's whole job is to supply the compaction request's model and
   // tools. One without a model would build a request that cannot be sent.
   const modelless = new CompactionState();
-  modelless.recordPayload({ input: [] }, "openai-codex");
+  modelless.recordPayload({ input: [] }, "openai-codex", "acct");
   assert.equal(modelless.snapshot, undefined);
 
   const providerless = new CompactionState();
-  providerless.recordPayload({ model: "gpt-5.6-sol", input: [] }, "");
+  providerless.recordPayload({ model: "gpt-5.6-sol", input: [] }, "", "acct");
   assert.equal(providerless.snapshot, undefined);
 
+  const accountless = new CompactionState();
+  accountless.recordPayload(
+    { model: "gpt-5.6-sol", input: [] },
+    "openai-codex",
+    "",
+  );
+  assert.equal(accountless.snapshot, undefined);
+
   const state = new CompactionState();
-  state.recordPayload({ model: "gpt-5.6-sol", input: [] }, "openai-codex");
-  assert.equal(state.snapshot?.backend, "openai-codex/gpt-5.6-sol");
+  state.recordPayload(
+    { model: "gpt-5.6-sol", input: [] },
+    "openai-codex",
+    "acct",
+  );
+  assert.equal(
+    state.snapshot?.backend,
+    backendKey("openai-codex", "gpt-5.6-sol", "acct"),
+  );
 });
 
 test("shutdown drops everything", () => {
   const state = new CompactionState();
-  state.recordPayload({ model: "m" }, "openai-codex");
+  state.recordPayload({ model: "m" }, "openai-codex", "acct");
   state.remember("cmp_1", artifact, "openai-codex/m");
   state.clear();
   assert.equal(state.size, 0);
@@ -64,7 +91,7 @@ test("navigating away drops the snapshot but keeps the artifacts", () => {
   // result for this branch's summary. The artifacts stay valid because the
   // compaction entries referencing them do.
   const state = new CompactionState();
-  state.recordPayload({ model: "m" }, "openai-codex");
+  state.recordPayload({ model: "m" }, "openai-codex", "acct");
   state.remember("cmp_1", artifact, "openai-codex/m");
   state.clearSnapshot();
   assert.equal(state.snapshot, undefined);
@@ -75,7 +102,7 @@ test("a snapshot records when it was captured", () => {
   // Compaction compares this against the messages it is summarizing: a request
   // captured before them cannot have produced an artifact that covers them.
   const state = new CompactionState();
-  state.recordPayload({ model: "m" }, "openai-codex", 1000);
+  state.recordPayload({ model: "m" }, "openai-codex", "acct", 1000);
   assert.equal(state.snapshot?.capturedAt, 1000);
 });
 
@@ -160,4 +187,18 @@ test("an entry with no expiry is used rather than refused", () => {
   // A 401 is a clearer failure than declining to try, and pi owns refresh.
   const dir = authDir({ "openai-codex": { access: "tok", accountId: "acct" } });
   assert.ok(readCodexCredentials({ env: { PI_CODING_AGENT_DIR: dir } }));
+});
+
+test("the persisted key carries no account identifier", () => {
+  // `/share` uploads the session file as a gist, and this key rides along in
+  // the compaction entry's details. A digest distinguishes accounts without
+  // publishing one.
+  const key = backendKey("openai-codex", "gpt-5.6-sol", "acct-secret-id");
+  assert.ok(!key.includes("acct-secret-id"));
+  assert.equal(
+    key,
+    `openai-codex/gpt-5.6-sol#${accountFingerprint("acct-secret-id")}`,
+  );
+  assert.notEqual(accountFingerprint("a"), accountFingerprint("b"));
+  assert.equal(accountFingerprint("a"), accountFingerprint("a"));
 });

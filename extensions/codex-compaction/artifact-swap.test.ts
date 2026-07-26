@@ -105,3 +105,34 @@ test("deeply nested text does not send the walker into a loop", () => {
   const deep = { a: { b: { c: { d: { e: markSummary("cmp_1", "s") } } } } };
   assert.doesNotThrow(() => swapArtifacts([deep], always));
 });
+
+test("a quoted marker does not eat the message quoting it", () => {
+  // Asking about the marker, or a tool returning session-file contents, would
+  // otherwise have the whole item replaced by the artifact — losing the
+  // question or the tool result and duplicating the artifact.
+  const quoting = {
+    role: "user",
+    content: `what does ${artifactMarker("cmp_1")} mean in my session file?`,
+  };
+  const { input, swapped } = swapArtifacts([quoting], always);
+  assert.equal(swapped, 0);
+  assert.deepEqual(input[0], quoting);
+});
+
+test("tool traffic is never treated as a compaction summary", () => {
+  const toolResult = {
+    type: "function_call_output",
+    output: markSummary("cmp_1", "grep found this line in the session file"),
+  };
+  const { swapped, input } = swapArtifacts([toolResult], always);
+  assert.equal(swapped, 0);
+  assert.deepEqual(input[0], toolResult);
+});
+
+test("one artifact replaces one summary, even if the marker recurs", () => {
+  // Sending the same artifact twice is wasted context at best and a rejected
+  // request at worst.
+  const marked = { role: "user", content: markSummary("cmp_1", "s") };
+  const { swapped } = swapArtifacts([marked, { ...marked }], always);
+  assert.equal(swapped, 1);
+});

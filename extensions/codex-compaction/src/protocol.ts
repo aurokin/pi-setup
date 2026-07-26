@@ -109,12 +109,15 @@ export async function* sseEvents(
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const chunks = buffer.split("\n\n");
+      // SSE permits CRLF, and proxies inject it. Splitting on "\n\n" alone
+      // parses zero events from a CRLF stream, which would make every
+      // compaction fall back to the text summary with nothing to show why.
+      const chunks = buffer.split(/\r?\n\r?\n/);
       buffer = chunks.pop() ?? "";
       for (const chunk of chunks) {
-        const line = chunk.split("\n").find((l) => l.startsWith("data: "));
+        const line = chunk.split(/\r?\n/).find((l) => l.startsWith("data:"));
         if (!line) continue;
-        const data = line.slice(6);
+        const data = line.slice(5).trimStart();
         if (data === "[DONE]") return;
         try {
           const parsed: unknown = JSON.parse(data);

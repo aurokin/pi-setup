@@ -74,16 +74,20 @@ export default function codexCompaction(pi: ExtensionAPI) {
     // with ciphertext that provider cannot read.
     const provider = ctx.model?.provider;
     if (provider !== SUPPORTED_PROVIDER) return;
+    // Needed here too: the key includes the account, so a swap cannot be
+    // decided without knowing which account is currently signed in.
+    const credentials = readCodexCredentials();
+    if (!credentials) return;
 
     const payload = event.payload;
     if (typeof payload !== "object" || payload === null) return;
     const record = payload as Record<string, unknown>;
     if (!Array.isArray(record.input)) return;
 
-    state.recordPayload(record, provider);
+    state.recordPayload(record, provider, credentials.accountId);
 
     const model = typeof record.model === "string" ? record.model : "";
-    const backend = backendKey(provider, model);
+    const backend = backendKey(provider, model, credentials.accountId);
     const { input, swapped } = swapArtifacts(record.input, (id) =>
       state.lookup(id, backend),
     );
@@ -113,10 +117,13 @@ export default function codexCompaction(pi: ExtensionAPI) {
 
     const model = ctx.model;
     if (!model) return;
-    if (backendKey(model.provider, model.id) !== snapshot.backend) {
+    if (
+      backendKey(model.provider, model.id, credentials.accountId) !==
+      snapshot.backend
+    ) {
       log(
         pi,
-        "snapshot belongs to another backend; deferring to pi compaction",
+        "snapshot belongs to another backend or account; deferring to pi",
       );
       return;
     }
