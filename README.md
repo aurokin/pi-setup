@@ -24,6 +24,13 @@ Ours:
 - codex server-side compaction: replaces pi's text summary with the opaque
   artifact OpenAI's Responses service returns, which restores context far more
   faithfully ([design](extensions/codex-compaction/docs/design.md))
+- a `sleep` tool, so waiting for a deploy costs one tool call instead of a poll
+  loop — and any input from you ends the wait
+  ([design](extensions/sleep/docs/design.md))
+- `/loop`, which re-runs one prompt on a cadence for watching a thing over hours
+  ([design](extensions/loop/docs/design.md))
+- `/goal`, an objective restated to the model every turn, which only you can
+  change ([design](extensions/goal/docs/design.md))
 
 ## Setup
 
