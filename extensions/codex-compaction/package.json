@@ -1,0 +1,6 @@
+{
+  "name": "pi-codex-compaction",
+  "private": true,
+  "type": "module",
+  "pi": { "extensions": ["./index.ts"] }
+}

@@ -21,6 +21,9 @@ Ours:
 
 - a system prompt layer appending our engineering preferences to every turn
   ([design](extensions/system-prompt/docs/design.md))
+- codex server-side compaction: replaces pi's text summary with the opaque
+  artifact OpenAI's Responses service returns, which restores context far more
+  faithfully ([design](extensions/codex-compaction/docs/design.md))
 
 ## Setup
 
