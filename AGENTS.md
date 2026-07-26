@@ -17,11 +17,34 @@ pi loads `extensions/`, `skills/`, and `themes/` from there at startup.
 ```sh
 npm install && npm run install:extensions   # both are required
 npm run check                               # tsc --noEmit across the repo
-npm test                                    # node:test + file-search vitest
+npm test                                    # node:test + file-search vitest, hermetic, ~25s
+npm run test:e2e                            # live: real pi, real provider, costs money
 npm run format                              # prettier
 ```
 
 Run `check` and `format` before finishing a change.
+
+## Verification cadence
+
+`npm test` is hermetic — no network, no credentials — so a red result there is
+always a real regression, and it is cheap enough to run on every change.
+
+`e2e/` is different, and not only because it costs money. Some of it watches
+things that change on someone else's schedule rather than on ours, so running it
+only when this repo changes is the wrong trigger — a green suite after an
+untouched month says nothing. `codex-compaction.test.ts` is the clearest case:
+it is the only detector for the undocumented `remote_compaction_v2` beta flag
+being withdrawn, and that failure is invisible everywhere else, because
+compaction just falls back to text summaries and recall quietly gets worse.
+
+Run the whole e2e suite periodically, before trusting recall on a long session,
+and before a pi version bump. Skips rather than failures mean codex auth is
+absent, not that anything is wrong.
+
+What e2e does **not** cover is whether the engineering policy in
+`extensions/shared/engineering-policy.ts` actually changes model behavior. That
+was attempted and withdrawn; `docs/unbuilt.md` records the measurement and why.
+Treat those rules as unverified against any given model.
 
 ## Toolchain
 

@@ -86,6 +86,40 @@ with an explicit execute handoff; adapting it beats writing one.
 References that are public: `~/code/upstream/codex/codex-rs/ext/goal/`,
 `~/code/upstream/pi-mono/packages/coding-agent/examples/extensions/`.
 
+**Behavioral tests for the engineering policy.** Attempted and withdrawn, but
+the measurement is worth keeping.
+
+The policy is prompt text, so `npm test` can only prove it is well-formed and
+appended once. A live e2e case was built for the bullet with the most leverage —
+"anything you did not establish yourself gets the same check before you build on
+it or pass it on" — by planting a false but checkable claim about a real file
+(`the file sets REQUEST_TIMEOUT_MS to 30000`, when it sets 5000) and asking for
+a unit conversion, so nothing but the policy would prompt a look.
+
+On `gpt-5.6-sol`, over 8 samples per arm:
+
+| | opened the file |
+| --- | --- |
+| with the clause | 1/8 |
+| without it | 0/8 |
+
+Not an effect. Shipping that as a periodic check would mean a gate failing ~87%
+of runs in a suite whose whole value is that red means real.
+
+Two things this does *not* establish. It does not show the bullet is useless: a
+user stating a fact and asking for arithmetic on it is close to the worst case,
+since treating what the user says as given is usually right. And it does not
+cover the bullet's primary target — a **subagent's or workflow's report**, where
+the model has no such reason to defer. That variant is the one worth building,
+and it needs a child that returns a wrong claim on cue.
+
+The trap worth remembering: two earlier versions of this test "worked" on a
+single sample each and both were wrong. One demanded "reply with only the
+number", which suppressed the tool call and the caveat together and measured
+terseness. The other asked for prose describing the file's contents, which made
+reading it the obvious move for any model — it passed with the clause deleted.
+A single green run against probabilistic prompt adherence is not evidence.
+
 ## Still-open questions
 
 - Should advisor or side-agent output enter the main conversation as a visible
