@@ -8,7 +8,7 @@ Forked from [davis7dotsh/my-pi-setup](https://github.com/davis7dotsh/my-pi-setup
 
 Inherited from upstream:
 
-- github dark default theme
+- a github dark default theme (still here, not active)
 - firecrawl tools for searching and scraping
 - a bottom bar with the info I want to see
 - background terminals + UI to manage them
@@ -19,6 +19,8 @@ Inherited from upstream:
 
 Ours:
 
+- a tokyo night theme matching the `~/.dotfiles` palette — tokyonight-night, with
+  the same `#101217` background the terminal config uses
 - a system prompt layer appending our engineering preferences to every turn
   ([design](extensions/system-prompt/docs/design.md))
 - codex server-side compaction: replaces pi's text summary with the opaque
