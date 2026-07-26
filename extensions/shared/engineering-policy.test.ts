@@ -89,10 +89,19 @@ test("scratch has a destination, and deliverables are carved out of it", () => {
   // it has to exclude the file the user actually asked for.
   const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("scratch"));
   assert.ok(rule);
-  assert.match(rule, /PI_CODING_AGENT_DIR:-~\/\.pi\/agent/);
+  assert.match(rule, /PI_CODING_AGENT_DIR:-\$HOME\/\.pi\/agent/);
   assert.match(rule, /not scratch/);
   // Never a repo-relative path: that is the failure this rule exists to prevent.
   assert.doesNotMatch(rule, /\.\/|\bdocs\/|\bplans\//);
+});
+
+test("the scratch root survives being quoted", () => {
+  // No shell tilde-expands inside double quotes, so a `~` fallback hands a
+  // correctly-quoting model the literal string `~/.pi/agent` and `mkdir -p`
+  // makes a directory named `~` in the working tree. $HOME expands either way.
+  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("scratch"));
+  assert.ok(rule);
+  assert.doesNotMatch(rule, /:-~/);
 });
 
 test("the concision rule names the waste rather than asking for less", () => {

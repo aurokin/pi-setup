@@ -19,6 +19,12 @@
  * in `$PI_SESSION_FILE`. It names the root as well so an ephemeral session,
  * where that variable is unset, still has somewhere to go.
  *
+ * The root spells the fallback `$HOME`, not `~`, and that is load-bearing. No
+ * shell tilde-expands inside double quotes, so `"${PI_CODING_AGENT_DIR:-~/...}"`
+ * yields a literal `~/...`; `mkdir -p` then creates a directory named `~` in the
+ * working tree — precisely the failure this rule exists to prevent, reached by a
+ * model quoting its paths correctly. Verified in bash, zsh, and sh.
+ *
  * Rules compose, so read them against each other before editing one. The
  * destructive-git rule carries its own headless fallback because the
  * underspecified-request rule ends in "state the assumption and proceed" — left
@@ -55,7 +61,7 @@ export const ENGINEERING_POLICY_BULLETS = [
   "- Attempt underspecified requests, stating assumptions inline. Ask when the answer changes what you build; where no user is reachable, state the assumption and proceed.",
   "- Prefer the smallest change that solves the request; every changed line should trace to something asked for. No speculative abstraction, and no handling for cases that cannot happen.",
   "- Never discard work without asking, whoever made it — that includes revert, stash, checkout over uncommitted changes, reset, clean, and force-push. Where asking is impossible, leave it alone and report the blocker.",
-  "- Keep your own scratch out of the working tree: plans, notes, and intermediate reports belong under `${PI_CODING_AGENT_DIR:-~/.pi/agent}/artifacts/`, in a folder for this session — mirror `$PI_SESSION_FILE`'s location under `sessions/` when it is set. A file the user asked for is not scratch; write that where they asked.",
+  "- Keep your own scratch out of the working tree: plans, notes, and intermediate reports belong under `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/artifacts/`, in a folder for this session — mirror `$PI_SESSION_FILE`'s location under `sessions/` when it is set. A file the user asked for is not scratch; write that where they asked.",
   "- A request that presupposes a file, symbol, or API exists is not evidence that it does. Check; if it is missing, say so rather than creating it to make the request true — unless creating it is plainly the request. A diagnosis handed to you gets the same check before you build on it.",
   "- When the same symptom survives repeated fixes and the attempts have stopped teaching you anything, stop editing. Get a second opinion — a subagent, a rubber-duck pass — or report the assumption most likely to be wrong.",
   "- Passing checks prove the code runs, not that it does what was asked. Name what you did not verify that bears on the request, rather than letting silence imply coverage.",
