@@ -13,26 +13,19 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Data } from "effect";
 import type { RoleName } from "../../shared/roles.ts";
-import {
-  CORE_BACKENDS,
-  PLUGIN_BACKENDS,
-  type CoreBackendName,
-  type PluginBackendName,
-} from "./plugins.ts";
+import { ALL_HARNESSES, type HarnessName } from "./harnesses.ts";
 
 /** Whatever a pi session accepts as a message, without restating its union. */
 export type ForkedMessage = Parameters<SessionManager["appendMessage"]>[0];
 
 /**
- * Every backend that exists. Not every one is offered: `CORE_BACKENDS` are
- * always registered, while the rest are plugins the user switches on — see
- * `plugins.ts`. The `harness` enum is built from what is enabled, not from this.
+ * Every backend that exists. Not every one is offered to the model — the
+ * `harness` enum is built from the configured selection in `harnesses.ts`,
+ * while internal features (`/btw`, `/runtime claude`) address backends by name
+ * regardless of it.
  */
-export const BACKEND_NAMES = [
-  ...CORE_BACKENDS,
-  ...PLUGIN_BACKENDS,
-] as const satisfies ReadonlyArray<CoreBackendName | PluginBackendName>;
-export type BackendName = (typeof BACKEND_NAMES)[number];
+export const BACKEND_NAMES = ALL_HARNESSES;
+export type BackendName = HarnessName;
 
 /**
  * Who initiated the session. Only "model" sessions are visible to the subagent

@@ -12,26 +12,15 @@ import { claudeBackend } from "./backends/claude.ts";
 import { codexBackend } from "./backends/codex.ts";
 import { piBackend } from "./backends/pi.ts";
 import type { BackendName } from "./domain.ts";
-import { loadEnabledPlugins, type PluginBackendName } from "./plugins.ts";
 
 /**
- * Plugin backends, registered only when switched on. Empty until the droid and
- * cursor backends land — adding one is a single entry here, which is the point
- * of the seam: `plugins.ts` decides what is offered, this decides what exists.
- */
-const PLUGIN_BACKENDS: Partial<Record<PluginBackendName, SubagentBackend>> = {};
-
-/**
- * Core backends are always registered; plugins only when switched on. An
- * absent plugin is absent from the registry rather than registered-and-refused,
- * so there is one source of truth for what exists.
+ * Every implemented backend is registered, whatever the config offers. `/btw`
+ * needs pi and `/runtime claude` needs claude, and neither goes through the
+ * `harness` enum — config decides what the *model* may route to, not what
+ * exists. droid and cursor join this list when their backends land.
  */
 const BackendRegistryLive = Layer.sync(BackendRegistry, () => {
   const backends: SubagentBackend[] = [piBackend, claudeBackend, codexBackend];
-  for (const name of loadEnabledPlugins().enabled) {
-    const plugin = PLUGIN_BACKENDS[name];
-    if (plugin) backends.push(plugin);
-  }
   return new Map<BackendName, SubagentBackend>(
     backends.map((backend) => [backend.name, backend]),
   );

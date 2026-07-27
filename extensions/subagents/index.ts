@@ -50,11 +50,10 @@ import {
 } from "./src/by-the-way.ts";
 import { registerPrimaryRuntime } from "./src/primary/index.ts";
 import {
-  enabledBackendNames,
-  loadEnabledPlugins,
-  PLUGIN_BACKENDS,
-  PLUGINS_ENV_VAR,
-} from "./src/plugins.ts";
+  ALL_HARNESSES,
+  CONFIG_FILENAME,
+  loadHarnessSelection,
+} from "./src/harnesses.ts";
 import {
   formatElapsed,
   latestText,
@@ -151,19 +150,25 @@ function resolveChildProjectTrust(options: {
 }
 
 export default function (pi: ExtensionAPI) {
-  // Read once, at registration: the tool schema is built here and the registry
-  // is built from the same selection, so both have to see one answer.
-  const pluginSelection = loadEnabledPlugins();
-  const offeredHarnesses = enabledBackendNames(pluginSelection);
-  if (pluginSelection.unknown.length > 0) {
-    // A typo'd plugin name would otherwise just silently not appear.
+  // Read once, at registration: the tool schema is built from this and cannot
+  // change afterwards, so re-reading later would only disagree with itself.
+  // Writes the file with defaults on first use.
+  const harnesses = loadHarnessSelection();
+  const offeredHarnesses = harnesses.offered;
+  if (harnesses.problem) {
     console.warn(
-      `[subagents] ${PLUGINS_ENV_VAR} lists unknown plugin(s): ${pluginSelection.unknown.join(", ")}. Known: ${PLUGIN_BACKENDS.join(", ")}.`,
+      `[subagents] ${CONFIG_FILENAME}: ${harnesses.problem}. Using defaults (${offeredHarnesses.join(", ")}).`,
     );
   }
-  if (pluginSelection.pending.length > 0) {
+  if (harnesses.unknown.length > 0) {
+    // A typo'd name would otherwise just silently not appear.
     console.warn(
-      `[subagents] ${PLUGINS_ENV_VAR} asks for ${pluginSelection.pending.join(", ")}, which has no backend yet — not offered.`,
+      `[subagents] ${CONFIG_FILENAME} lists unknown harness(es): ${harnesses.unknown.join(", ")}. Known: ${ALL_HARNESSES.join(", ")}.`,
+    );
+  }
+  if (harnesses.pending.length > 0) {
+    console.warn(
+      `[subagents] ${CONFIG_FILENAME} asks for ${harnesses.pending.join(", ")}, which has no backend yet — not offered.`,
     );
   }
 
