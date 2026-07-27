@@ -22,6 +22,7 @@
     "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"*.json\"",
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"*.json\"",
     "test": "node --test --experimental-strip-types extensions/*/*.test.ts && npm --prefix extensions/file-search test",
-    "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts"
+    "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts",
+    "profile:slim": "./scripts/slim-profile.sh"
   }
 }

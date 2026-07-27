@@ -59,6 +59,34 @@ This is symlinks rather than cloning straight into `~/.pi/agent` because the
 agent directory is not only config — `auth.json`, `sessions/`, and
 `models-store.json` live there too, and none of them belong in a public repo.
 
+## Slim profile
+
+The full setup assumes a frontier model: it registers 23 tools, several of them
+orchestration a weaker model cannot supervise. `npm run profile:slim` writes a
+second profile for locally served models:
+
+```sh
+npm run profile:slim
+PI_CODING_AGENT_DIR=~/.pi/agent-slim pi
+```
+
+It loads seven extensions rather than all of them — the engineering rules, the
+`fd`/`rg` tools, `ask_user`, `goal`, and the three that render the theme — and
+no skills at all, since skill descriptions cost context on every turn. That
+comes to 9 tools against the full profile's 23. Workflows, subagents,
+background terminals, sleep, loop, firecrawl, and codex compaction are all left
+out; `scripts/slim-profile.sh` says why beside each one.
+
+The profile is one `settings.json` rather than a directory of symlinks, because
+an agent directory with no `extensions/` of its own discovers nothing — so the
+paths that file lists are the entire set. It carries no `auth.json`: a locally
+served model authenticates to nothing. Point it at one by writing
+`~/.pi/agent-slim/models.json`, which adds providers without disturbing the
+built-in catalog.
+
+Sessions and settings are separate from the main profile. The repo is shared,
+so editing an extension changes both.
+
 ## Firecrawl
 
 The search, scrape, and crawl tools require a Firecrawl API key. Follow [Firecrawl's Node.js getting-started guide](https://docs.firecrawl.dev/quickstarts/nodejs) to create one, then copy the example environment file:
