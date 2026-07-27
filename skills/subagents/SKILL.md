@@ -17,6 +17,33 @@ Each subagent is headless, has its own context window, cannot see the parent con
 - If the harness you need is unavailable, say so. Never silently do it solo and present the result as if the delegation happened.
 - **Egress**: a `claude` or `codex` child ships everything it reads to that provider. Do not send credential-bearing or private content to a provider without the user's explicit agreement for that provider.
 
+## Choosing a harness
+
+**Default to pi.** It reaches every model in the menu, its children get their own
+context window, and its roles enforce read-only in the tool list rather than in
+prose. Leaving the harness costs a process spawn and a second copy of the
+model's tooling; it buys a capability only in the two cases below.
+
+- **`claude`** — Claude Code's own harness, authenticated by the Claude
+  subscription rather than API credits. Note it is *not* the only way to reach a
+  Claude model: `opencode` serves opus, sonnet, fable, and haiku to the pi
+  harness directly. So this is a choice of harness and billing path, not of
+  model family. Pick it when the user names Claude Code, or when its own tooling
+  is the point.
+- **`codex`** — GUI work that `agent-browser` cannot reach: native macOS
+  applications, simulators, screenshots of arbitrary windows. Browsers and
+  Electron apps (Slack, VS Code, Figma, Notion) are **not** in this category —
+  the `agent-browser` skill covers them from inside pi and asks to be preferred
+  over any other browser tooling.
+- **`pi`** — everything else, including bulk implementation, long reading, and
+  investigation. A pi child running `gpt-5.6-sol` is the same model a codex
+  child would run; shelling out adds a process, not a capability.
+
+One real difference, for the rare case it matters: pi children run in-process,
+so a hung one does not surface as a failed exit — it simply never settles.
+`claude` and `codex` children are separate processes. Needing that isolation is
+a reason to leave the harness. Being able to leave it is not.
+
 ## Briefing a child
 
 The child shares none of your context, so the prompt carries all of it: paths, constraints, what is already decided, and the exact shape of the report you want back.
@@ -28,6 +55,12 @@ When you are asking a child to weigh a decision rather than do a task, give it y
 A child's report is evidence, not a conclusion. Before you act on a claim or relay it to the user, check the cited code or behavior yourself, and separate what you confirmed from what you did not. A confident report of a command that does not exist reads exactly like a correct one.
 
 ## Model roster
+
+**Stay on the session's configured provider unless the user names another.** The
+model list here runs to hundreds of entries across several providers because it
+is a menu, not a routing table — it exists so the user can pick, not so you can
+shop. The roles below say what a model is *for* when one is chosen; they are
+never a licence to move work to a provider the user did not ask for.
 
 Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task difficulty, medium is the usual default. Never choose `max` yourself, even where a harness offers it. `max` is the user's to pick: fine when they ask for it, and fine when a pi child inherits it from a session already running there.
 
