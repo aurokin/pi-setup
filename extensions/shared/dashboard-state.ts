@@ -1,6 +1,7 @@
 export const MODEL_INFO_CHANNEL = "dashboard:model-info";
 export const GIT_INFO_CHANNEL = "dashboard:git-info";
 export const REFRESH_CHANNEL = "dashboard:refresh";
+export const PRIMARY_RUNTIME_CHANNEL = "dashboard:primary-runtime";
 
 export interface ModelInfoState {
   provider: string;
@@ -13,6 +14,81 @@ export interface ModelInfoState {
   cost: number;
   tokensPerSecond: number | null;
   generating: boolean;
+}
+
+/**
+ * What the subagents extension publishes while Claude is the primary runtime.
+ *
+ * The bar reads `ctx.model`, which is pi's model and does not change when the
+ * turn is redirected — so without this it keeps naming pi's model, and shows a
+ * context gauge for a session that is not accumulating anything, while Claude
+ * answers. Two conflicting model readouts on one screen is worse than none.
+ */
+export interface PrimaryRuntimeState {
+  active: boolean;
+  /** Model as the CLI reports it once running; the requested alias before that. */
+  modelLabel: string;
+  /** Requested reasoning effort; empty when left to the CLI default. */
+  effort: string;
+  contextTokens: number | null;
+  contextWindow: number;
+}
+
+export function emptyPrimaryRuntimeState(): PrimaryRuntimeState {
+  return {
+    active: false,
+    modelLabel: "",
+    effort: "",
+    contextTokens: null,
+    contextWindow: 0,
+  };
+}
+
+export function isPrimaryRuntimeState(
+  value: unknown,
+): value is PrimaryRuntimeState {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.active === "boolean" &&
+    typeof value.modelLabel === "string" &&
+    typeof value.effort === "string" &&
+    isNullableNumber(value.contextTokens) &&
+    typeof value.contextWindow === "number"
+  );
+}
+
+/**
+ * Overlay the active runtime onto the model info the bar renders.
+ *
+ * Everything pi measures about its own turn is blanked rather than carried
+ * over: tokens/sec belongs to a stream pi is not receiving, and the context
+ * gauge belongs to a conversation pi is not having. Session cost stays, because
+ * it is pi's real accumulated cost and Claude Code bills a subscription rather
+ * than tokens — it simply stops climbing while Claude answers.
+ */
+export function withPrimaryRuntime(
+  state: ModelInfoState,
+  primary: PrimaryRuntimeState,
+): ModelInfoState {
+  if (!primary.active) return state;
+
+  const tokens = primary.contextTokens;
+  const window = primary.contextWindow;
+  const percent =
+    tokens !== null && window > 0 ? (tokens / window) * 100 : null;
+
+  return {
+    ...state,
+    provider: "claude",
+    modelId: primary.modelLabel || "default",
+    modelName: primary.modelLabel || "Claude",
+    thinking: primary.effort || "default",
+    contextTokens: tokens,
+    contextWindow: window,
+    contextPercent: percent,
+    tokensPerSecond: null,
+  };
 }
 
 export interface PullRequestInfo {

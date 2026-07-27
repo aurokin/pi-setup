@@ -23,12 +23,22 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { SubagentManagerShape } from "../manager.ts";
 import type { SubagentSnapshot } from "../domain.ts";
-import { parseRuntimeCommand } from "./args.ts";
+import {
+  emptyPrimaryRuntimeState,
+  PRIMARY_RUNTIME_CHANNEL,
+  type PrimaryRuntimeState,
+} from "../../../shared/dashboard-state.ts";
+import {
+  completeRuntimeArguments,
+  parseRuntimeCommand,
+  type RuntimeCommand,
+} from "./args.ts";
 import { decideInput } from "./routing.ts";
 import {
   describeState,
   handoffSummary,
   initialState,
+  planActivation,
   planSend,
 } from "./state.ts";
 
@@ -52,10 +62,33 @@ export function registerPrimaryRuntime(
 ) {
   const state = initialState();
   let unsubscribe: (() => void) | undefined;
-  /** Live snapshot of the primary session, for the busy indicator. */
-  let isRunning = () => false;
+  /** Live snapshot of the primary session, for the indicator and the bar. */
+  let snapshot = (): SubagentSnapshot | undefined => undefined;
+  const isRunning = () => snapshot()?.status === "running";
+
+  /**
+   * Tell the dashboard who is actually answering. pi's own model never changes
+   * while the runtime is active, so the bar would otherwise keep naming it.
+   */
+  const publishRuntime = () => {
+    const snap = snapshot();
+    const runtime: PrimaryRuntimeState = state.active
+      ? {
+          active: true,
+          // The CLI's own label once a turn has landed; until then, whatever
+          // was asked for, so the bar is never blank when it knows something.
+          modelLabel: snap?.meta.modelLabel ?? state.model ?? "",
+          effort: state.effort ?? "",
+          contextTokens: snap?.usage.tokens ?? null,
+          contextWindow:
+            snap?.usage.contextWindow ?? snap?.meta.contextWindow ?? 0,
+        }
+      : emptyPrimaryRuntimeState();
+    pi.events.emit(PRIMARY_RUNTIME_CHANNEL, runtime);
+  };
 
   const setStatus = () => {
+    publishRuntime();
     const ui = deps.ui();
     if (!ui) return;
     if (!state.active) {
@@ -77,7 +110,7 @@ export function registerPrimaryRuntime(
   const watch = async (id: string) => {
     const manager = await deps.getManager();
     unsubscribe?.();
-    isRunning = () => manager.view.get(id)?.status === "running";
+    snapshot = () => manager.view.get(id);
     let lastSeen = "";
     unsubscribe = manager.view.subscribeTo(id, () => {
       const snap = manager.view.get(id);
@@ -100,13 +133,41 @@ export function registerPrimaryRuntime(
   };
 
   const activate = async (
-    command: { model?: string; effort?: string },
+    command: Extract<RuntimeCommand, { action: "claude" }>,
     ctx: ExtensionCommandContext,
   ) => {
-    state.active = true;
-    state.model = command.model;
-    state.effort = command.effort as never;
+    // The same window `planSend` calls busy: the spawn in flight has no id yet,
+    // so there is nothing for --new to abandon and the resolving spawn would
+    // install the session it was told to replace.
+    if (command.fresh && state.pendingSpawn) {
+      ctx.ui?.notify(
+        "The Claude session is still starting. Run that again in a moment.",
+        "warning",
+      );
+      return;
+    }
+
+    const wasRunning = isRunning();
+    const effects = planActivation(state, command);
+
+    if (effects.abandonedSessionId) {
+      // Abort before forgetting: a turn still in flight would otherwise keep
+      // working with its handle gone, unreachable by `/runtime interrupt` and
+      // running alongside whatever the next prompt spawns.
+      if (wasRunning) deps.abort(effects.abandonedSessionId);
+      unsubscribe?.();
+      unsubscribe = undefined;
+      snapshot = () => undefined;
+    }
     setStatus();
+
+    if (effects.ignoredOptions) {
+      ctx.ui?.notify(
+        `That Claude session fixed its model and effort when it started, so these were not applied. Add "--new" to start a fresh session on them.`,
+        "warning",
+      );
+      return;
+    }
     ctx.ui?.notify(
       `Claude is now the primary runtime. pi commands still work; "/runtime pi" switches back. The session starts on your next prompt.`,
       "info",
@@ -145,6 +206,7 @@ export function registerPrimaryRuntime(
 
   pi.registerCommand("runtime", {
     description: "Route this session's prompts to Claude, or back to pi",
+    getArgumentCompletions: completeRuntimeArguments,
     handler: async (rawArgs, ctx) => {
       const command = parseRuntimeCommand(rawArgs);
       switch (command.action) {
@@ -231,6 +293,7 @@ export function registerPrimaryRuntime(
       unsubscribe?.();
       unsubscribe = undefined;
       state.active = false;
+      publishRuntime();
     },
   };
 }

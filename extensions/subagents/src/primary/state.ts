@@ -26,6 +26,61 @@ export function initialState(): PrimaryState {
   return { active: false, pendingSpawn: false, turns: 0 };
 }
 
+/** Work the extension must do outside the state machine after activating. */
+export interface ActivationEffects {
+  /**
+   * A session `--new` discarded. It has to be aborted rather than merely
+   * forgotten: dropping the handle of a running turn leaves Claude working
+   * invisibly, with nothing left able to stop it.
+   */
+  readonly abandonedSessionId?: string;
+  /** Model or effort was passed at a session that already fixed both. */
+  readonly ignoredOptions: boolean;
+}
+
+/**
+ * Apply `/runtime claude` to the state.
+ *
+ * Model and effort are sticky: assigning them unconditionally meant a later
+ * bare `/runtime claude` silently reset the model you chose earlier, which is
+ * not what anyone types that meaning.
+ *
+ * They are also fixed when the session spawns. Options aimed at an open session
+ * are therefore refused outright rather than held for "the next one" — without
+ * `--new` there is no next one in this pi run, and storing them would leave
+ * `/runtime status` and the bar naming settings the live session is not using.
+ */
+export function planActivation(
+  state: PrimaryState,
+  command: {
+    readonly model?: string;
+    readonly effort?: ReasoningEffort;
+    readonly fresh?: boolean;
+  },
+): ActivationEffects {
+  state.active = true;
+
+  const asked = command.model !== undefined || command.effort !== undefined;
+  if (asked && state.sessionId !== undefined && !command.fresh) {
+    return { ignoredOptions: true };
+  }
+
+  if (command.model !== undefined) state.model = command.model;
+  if (command.effort !== undefined) state.effort = command.effort;
+
+  if (command.fresh) {
+    const abandoned = state.sessionId;
+    state.sessionId = undefined;
+    state.turns = 0;
+    return {
+      ...(abandoned ? { abandonedSessionId: abandoned } : {}),
+      ignoredOptions: false,
+    };
+  }
+
+  return { ignoredOptions: false };
+}
+
 export type SendPlan =
   | { readonly kind: "spawn" }
   | { readonly kind: "send"; readonly sessionId: string }
