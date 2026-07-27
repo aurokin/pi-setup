@@ -56,13 +56,29 @@ A child's report is evidence, not a conclusion. Before you act on a claim or rel
 
 ## Model roster
 
-**Stay on the session's configured provider unless the user names another.** The
-model list here runs to hundreds of entries across several providers because it
-is a menu, not a routing table — it exists so the user can pick, not so you can
-shop. The roles below say what a model is *for* when one is chosen; they are
-never a licence to move work to a provider the user did not ask for.
+**Always pass both `model` and `reasoning_effort`.** Omitting them makes a pi
+child inherit the parent's, which reads like a decision but is only a default.
+Choosing what a child runs on is part of deciding to spawn it — a cheap
+mechanical task deserves a cheap model whatever the parent happens to be using.
 
-Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task difficulty, medium is the usual default. Never choose `max` yourself, even where a harness offers it. `max` is the user's to pick: fine when they ask for it, and fine when a pi child inherits it from a session already running there.
+**Two subscriptions, and nothing else unless the user says so.** The model list
+here runs to hundreds of entries across many providers, but it is a menu rather
+than a routing table: it exists so the user can pick from it, not so you can shop
+in it. Work you route yourself goes to one of these:
+
+| Route | Reached by | For |
+| --- | --- | --- |
+| Codex subscription | `openai-codex/*` on the pi harness | the default for everything |
+| Claude Code subscription | the `claude` harness | when a role below calls for a Claude model |
+
+Everything else on the menu is the user's to invoke by name, and each is paid for
+in a currency worth protecting: `opencode` and `droid` credits buy open-weight
+usage, and `cursor` and `grok` buy Grok. **Reaching a Claude model through
+`opencode` is the specific mistake to avoid** — it spends open-weight credit on
+something the Claude Code subscription already covers, which is why no such model
+appears in the pi harness table below.
+
+Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task difficulty, medium is the usual default. Never choose `max` yourself; it is the user's to ask for.
 
 | Model | Role |
 | --- | --- |
@@ -78,19 +94,18 @@ Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task dif
 
 **Harness:** `pi`
 **Prompt nicknames:** "pi", "pi agent", "pi subagent"
-**Best default:** Use when the user does not request another harness. It inherits the parent model and thinking level when `model` or `reasoning_effort` is omitted.
+**Best default:** Use when the user does not request another harness.
 
-Do not use models from the Anthropic provider even if one appears in the model list.
-
-Pi can use any model shown by `pi --list-models`. Prefer `provider/model-id`; a bare model id only works when unambiguous. Common picks in this environment:
+Pi can address any model shown by `pi --list-models`, which is far more than it should route to. Set both `model` and `reasoning_effort` explicitly; omitting them silently inherits the parent's. Prefer `provider/model-id` — a bare model id only works when unambiguous.
 
 | Model | Effort |
 | --- | --- |
-| inherited parent model (default) | inherited |
-| `openai-codex/gpt-5.6-sol` | by difficulty |
-| `opencode/claude-fable-5` | `medium`, and only when the user names fable |
+| `openai-codex/gpt-5.6-sol` | by difficulty; the default for pi children |
+| `openai-codex/gpt-5.6-luna` | `xhigh`, trivial precisely-specified tasks only |
 
-**Thinking budgets:** `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. These map directly to pi thinking levels. Do not reach for `max` on your own; asked for or inherited, it is fine.
+Claude models appear on this menu through `opencode` and `openrouter`. Do not route to them: the `claude` harness reaches the same models on a subscription already paid for, while those providers spend credit meant for open-weight work.
+
+**Thinking budgets:** `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. These map directly to pi thinking levels. Do not reach for `max` on your own.
 
 ## Claude Code Harness
 
