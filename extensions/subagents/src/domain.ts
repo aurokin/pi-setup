@@ -13,11 +13,25 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Data } from "effect";
 import type { RoleName } from "../../shared/roles.ts";
+import {
+  CORE_BACKENDS,
+  PLUGIN_BACKENDS,
+  type CoreBackendName,
+  type PluginBackendName,
+} from "./plugins.ts";
 
 /** Whatever a pi session accepts as a message, without restating its union. */
 export type ForkedMessage = Parameters<SessionManager["appendMessage"]>[0];
 
-export const BACKEND_NAMES = ["pi", "claude", "codex"] as const;
+/**
+ * Every backend that exists. Not every one is offered: `CORE_BACKENDS` are
+ * always registered, while the rest are plugins the user switches on — see
+ * `plugins.ts`. The `harness` enum is built from what is enabled, not from this.
+ */
+export const BACKEND_NAMES = [
+  ...CORE_BACKENDS,
+  ...PLUGIN_BACKENDS,
+] as const satisfies ReadonlyArray<CoreBackendName | PluginBackendName>;
 export type BackendName = (typeof BACKEND_NAMES)[number];
 
 /**

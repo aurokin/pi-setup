@@ -50,7 +50,12 @@ import {
 } from "./src/by-the-way.ts";
 import { registerPrimaryRuntime } from "./src/primary/index.ts";
 import {
-  BACKEND_NAMES,
+  enabledBackendNames,
+  loadEnabledPlugins,
+  PLUGIN_BACKENDS,
+  PLUGINS_ENV_VAR,
+} from "./src/plugins.ts";
+import {
   formatElapsed,
   latestText,
   REASONING_EFFORTS,
@@ -146,6 +151,22 @@ function resolveChildProjectTrust(options: {
 }
 
 export default function (pi: ExtensionAPI) {
+  // Read once, at registration: the tool schema is built here and the registry
+  // is built from the same selection, so both have to see one answer.
+  const pluginSelection = loadEnabledPlugins();
+  const offeredHarnesses = enabledBackendNames(pluginSelection);
+  if (pluginSelection.unknown.length > 0) {
+    // A typo'd plugin name would otherwise just silently not appear.
+    console.warn(
+      `[subagents] ${PLUGINS_ENV_VAR} lists unknown plugin(s): ${pluginSelection.unknown.join(", ")}. Known: ${PLUGIN_BACKENDS.join(", ")}.`,
+    );
+  }
+  if (pluginSelection.pending.length > 0) {
+    console.warn(
+      `[subagents] ${PLUGINS_ENV_VAR} asks for ${pluginSelection.pending.join(", ")}, which has no backend yet — not offered.`,
+    );
+  }
+
   let runtime: SubagentRuntime | undefined;
   let managerPromise: Promise<SubagentManagerShape> | undefined;
   let sessionContext: ExtensionContext | undefined;
@@ -299,7 +320,9 @@ export default function (pi: ExtensionAPI) {
       role: StringEnum(ROLE_NAMES, {
         description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.role,
       }),
-      harness: StringEnum(BACKEND_NAMES, {
+      // Only the harnesses actually registered. A disabled plugin is not
+      // offered at all, so the model cannot spend a turn discovering it is off.
+      harness: StringEnum(offeredHarnesses, {
         description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.harness,
       }),
       working_dir: Type.Optional(
