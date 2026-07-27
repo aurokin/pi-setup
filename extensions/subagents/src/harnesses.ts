@@ -46,14 +46,17 @@ export const DEFAULT_HARNESSES = ["pi", "claude", "codex"] as const;
 export const ALWAYS_OFFERED: HarnessName = "pi";
 
 /**
- * Harnesses with a backend behind them. droid and cursor join this list when
- * theirs land; until then, asking for one is reported rather than silently
- * putting a harness in the enum that cannot spawn.
+ * Harnesses with a backend behind them. A name here but not in
+ * `DEFAULT_HARNESSES` is built and available, just not offered until asked
+ * for; a name in neither is reported as pending rather than silently putting
+ * a harness in the enum that cannot spawn.
  */
 export const IMPLEMENTED_HARNESSES: ReadonlyArray<HarnessName> = [
   "pi",
   "claude",
   "codex",
+  "droid",
+  "cursor",
 ];
 
 export const CONFIG_FILENAME = "subagents.json";
@@ -78,18 +81,28 @@ function isHarnessName(value: string): value is HarnessName {
   return (ALL_HARNESSES as readonly string[]).includes(value);
 }
 
-function select(names: ReadonlyArray<string>): HarnessSelection {
+/**
+ * `implemented` is a parameter rather than a direct read of the constant so
+ * the pending path stays testable once every harness has a backend — which is
+ * the state today, and exactly when that branch stops being exercised.
+ */
+export function selectHarnesses(
+  names: ReadonlyArray<string>,
+  implemented: ReadonlyArray<HarnessName> = IMPLEMENTED_HARNESSES,
+): HarnessSelection {
   const wanted = new Set(names.map((name) => name.trim().toLowerCase()));
   wanted.add(ALWAYS_OFFERED);
   const known = ALL_HARNESSES.filter((name) => wanted.has(name));
   return {
-    offered: known.filter((name) => IMPLEMENTED_HARNESSES.includes(name)),
-    pending: known.filter((name) => !IMPLEMENTED_HARNESSES.includes(name)),
+    offered: known.filter((name) => implemented.includes(name)),
+    pending: known.filter((name) => !implemented.includes(name)),
     unknown: [
       ...new Set([...wanted].filter((name) => !isHarnessName(name))),
     ].sort(),
   };
 }
+
+const select = (names: ReadonlyArray<string>) => selectHarnesses(names);
 
 export function defaultSelection(): HarnessSelection {
   return select(DEFAULT_HARNESSES);

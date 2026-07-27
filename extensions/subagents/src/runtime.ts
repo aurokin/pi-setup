@@ -10,6 +10,8 @@ import { Cause, Exit, Layer, ManagedRuntime, type Effect } from "effect";
 import { BackendRegistry, type SubagentBackend } from "./backend.ts";
 import { claudeBackend } from "./backends/claude.ts";
 import { codexBackend } from "./backends/codex.ts";
+import { cursorBackend } from "./backends/cursor.ts";
+import { droidBackend } from "./backends/droid.ts";
 import { piBackend } from "./backends/pi.ts";
 import type { BackendName } from "./domain.ts";
 
@@ -17,10 +19,17 @@ import type { BackendName } from "./domain.ts";
  * Every implemented backend is registered, whatever the config offers. `/btw`
  * needs pi and `/runtime claude` needs claude, and neither goes through the
  * `harness` enum — config decides what the *model* may route to, not what
- * exists. droid and cursor join this list when their backends land.
+ * exists. Registering droid and cursor here costs nothing until one is
+ * offered: `available` probes their credentials only when a spawn asks.
  */
 const BackendRegistryLive = Layer.sync(BackendRegistry, () => {
-  const backends: SubagentBackend[] = [piBackend, claudeBackend, codexBackend];
+  const backends: SubagentBackend[] = [
+    piBackend,
+    claudeBackend,
+    codexBackend,
+    droidBackend,
+    cursorBackend,
+  ];
   return new Map<BackendName, SubagentBackend>(
     backends.map((backend) => [backend.name, backend]),
   );

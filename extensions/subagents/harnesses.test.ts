@@ -12,6 +12,7 @@ import {
   IMPLEMENTED_HARNESSES,
   loadHarnessSelection,
   parseHarnessConfig,
+  selectHarnesses,
 } from "./src/harnesses.ts";
 import { BACKEND_NAMES } from "./src/domain.ts";
 
@@ -48,10 +49,19 @@ test("case and spacing are forgiven, duplicates collapse", () => {
 
 test("a known harness with no backend yet is pending, not offered", () => {
   // Offering a harness that cannot spawn reads as a bug rather than as work
-  // still in progress.
-  const selection = parseHarnessConfig({ harnesses: ["pi", "droid"] });
+  // still in progress. Every harness has a backend today, so the unimplemented
+  // set is injected — otherwise this branch would go untested precisely when
+  // it matters again, on the next harness someone adds.
+  const selection = selectHarnesses(["pi", "codex", "droid"], ["pi", "codex"]);
   assert.deepEqual(selection.pending, ["droid"]);
-  assert.ok(!selection.offered.includes("droid" as never));
+  assert.deepEqual(selection.offered, ["pi", "codex"]);
+});
+
+test("every harness in the catalog currently has a backend", () => {
+  assert.deepEqual(
+    parseHarnessConfig({ harnesses: [...ALL_HARNESSES] }).pending,
+    [],
+  );
 });
 
 test("an unknown name is reported rather than silently dropped", () => {
