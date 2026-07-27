@@ -11,6 +11,10 @@ pi loads `extensions/`, `skills/`, and `themes/` from there at startup.
 - `extensions/shared/` — cross-extension helpers. No package.json; imported by
   relative path.
 - `skills/<name>/SKILL.md` — model-facing docs loaded on demand.
+- An extension may also generate a skill: it renders one at startup and returns
+  the path from `resources_discover`. `extensions/subagents/skill/` is the
+  source for one — edit the markdown there, never the rendered copy under
+  `~/.pi/agent/generated-skills/`.
 
 ## Commands
 

@@ -30,12 +30,20 @@ also holds skills that came from elsewhere, so it cannot be a single symlink:
 ```sh
 mkdir -p ~/.pi/agent/skills
 ln -s ~/code/pi-setup/skills/background-terminals ~/.pi/agent/skills/
-ln -s ~/code/pi-setup/skills/subagents            ~/.pi/agent/skills/
 ln -s ~/code/pi-setup/skills/linearis             ~/.pi/agent/skills/
 ```
 
 Nothing in `~/.agents/skills` needs linking: pi reads that directory on its own,
 alongside `~/.pi/agent/skills`.
+
+**Do not link a `subagents` skill.** It no longer exists as a static file: the
+extension renders it from the harnesses `subagents.json` actually offers and
+hands pi the path at startup, so a linked copy would only shadow it with a stale
+list. If you linked one before, remove it:
+
+```sh
+rm -f ~/.pi/agent/skills/subagents
+```
 
 `skills/linearis` is a modified copy of
 [linearis-oss/linearis](https://github.com/linearis-oss/linearis)'

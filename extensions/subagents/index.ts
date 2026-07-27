@@ -73,14 +73,16 @@ import {
   SUBAGENT_CHECK_PARAMETER_DESCRIPTIONS,
   SUBAGENT_CHECK_TOOL_DESCRIPTION,
   SUBAGENT_LIST_TOOL_DESCRIPTION,
+  subagentHarnessParameterDescription,
   SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS,
-  SUBAGENT_SPAWN_PROMPT_GUIDELINES,
-  SUBAGENT_SPAWN_PROMPT_SNIPPET,
-  SUBAGENT_SPAWN_TOOL_DESCRIPTION,
+  subagentSpawnPromptGuidelines,
+  subagentSpawnPromptSnippet,
+  subagentSpawnToolDescription,
   SUBAGENT_WAIT_PARAMETER_DESCRIPTIONS,
   SUBAGENT_WAIT_TOOL_DESCRIPTION,
 } from "./src/prompt.ts";
 import { createDeferredResultDelivery } from "./src/result-delivery.ts";
+import { writeGeneratedSkill } from "./src/skill.ts";
 import {
   createSubagentRuntime,
   runTool,
@@ -171,6 +173,17 @@ export default function (pi: ExtensionAPI) {
       `[subagents] ${CONFIG_FILENAME} asks for ${harnesses.pending.join(", ")}, which has no backend yet — not offered.`,
     );
   }
+
+  // The skill documents the harnesses above, so it is rendered from them
+  // rather than kept in step by hand. pi takes skills by path, so it is
+  // written out and handed back when pi asks what resources exist.
+  pi.on("resources_discover", () => {
+    const skillPath = writeGeneratedSkill(
+      offeredHarnesses,
+      path.join(import.meta.dirname, "skill"),
+    );
+    return skillPath ? { skillPaths: [skillPath] } : {};
+  });
 
   let runtime: SubagentRuntime | undefined;
   let managerPromise: Promise<SubagentManagerShape> | undefined;
@@ -312,9 +325,9 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "subagent_spawn",
     label: "Spawn Subagent",
-    description: SUBAGENT_SPAWN_TOOL_DESCRIPTION,
-    promptSnippet: SUBAGENT_SPAWN_PROMPT_SNIPPET,
-    promptGuidelines: SUBAGENT_SPAWN_PROMPT_GUIDELINES,
+    description: subagentSpawnToolDescription(offeredHarnesses),
+    promptSnippet: subagentSpawnPromptSnippet(offeredHarnesses),
+    promptGuidelines: subagentSpawnPromptGuidelines(offeredHarnesses),
     parameters: Type.Object({
       prompt: Type.String({
         description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.prompt,
@@ -328,7 +341,7 @@ export default function (pi: ExtensionAPI) {
       // Only the harnesses actually registered. A disabled plugin is not
       // offered at all, so the model cannot spend a turn discovering it is off.
       harness: StringEnum(offeredHarnesses, {
-        description: SUBAGENT_SPAWN_PARAMETER_DESCRIPTIONS.harness,
+        description: subagentHarnessParameterDescription(offeredHarnesses),
       }),
       working_dir: Type.Optional(
         Type.String({
