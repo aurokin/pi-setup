@@ -160,6 +160,19 @@ export interface SubagentManagerShape {
    * settled (the tool layer validates ids first). While waiting, settles for
    * these ids are marked "consumed". Interruption (tool abort) releases the
    * interest and leaves the subagents running.
+   *
+   * KNOWN GAP — a follow-up sent to a *busy* subagent. The subprocess and SDK
+   * backends emit RunSettled and only then dequeue, so between those two the
+   * run reads as settled with a message still outstanding: this returns, and
+   * the parent is handed that turn's output as the run's result. The queued
+   * message is not lost — it runs, and settles again — so the symptom is a
+   * premature and misleading result rather than a dropped one. Measured live
+   * on cursor; codex and droid queue the same way. `entry.restarting` covers
+   * the mirror case (a send to an already-settled child) and could plausibly
+   * be set when settling with a non-empty queue, but that risks waiting
+   * forever if the queued run never starts, so it is a deliberate open
+   * question rather than an oversight. See
+   * `e2e/subagents-cursor.test.ts`, which asserts the current behaviour.
    */
   waitFor(
     ids: ReadonlyArray<string>,

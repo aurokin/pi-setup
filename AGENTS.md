@@ -42,8 +42,22 @@ being withdrawn, and that failure is invisible everywhere else, because
 compaction just falls back to text summaries and recall quietly gets worse.
 
 Run the whole e2e suite periodically, before trusting recall on a long session,
-and before a pi version bump. Skips rather than failures mean codex auth is
+and before a pi version bump. Skips rather than failures mean a credential is
 absent, not that anything is wrong.
+
+The subagent backends each need their own, and each skips without it: codex and
+claude need their CLI authenticated, `subagents-droid` needs `FACTORY_API_KEY`
+and a `droid` on PATH, `subagents-cursor` needs `CURSOR_API_KEY`. So a bare
+`npm run test:e2e` silently covers less than it looks like it does — reach them
+with the secret wrapper:
+
+```sh
+with-secret factory -- node --test --experimental-strip-types e2e/subagents-droid.test.ts
+with-secret cursor  -- node --test --experimental-strip-types e2e/subagents-cursor.test.ts
+```
+
+Both spawn a live agent with `worker` access, so both run in a scratch
+directory rather than this checkout.
 
 What e2e does **not** cover is whether the engineering policy in
 `extensions/shared/engineering-policy.ts` actually changes model behavior. That
