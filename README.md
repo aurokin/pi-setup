@@ -34,6 +34,10 @@ Ours:
   change ([design](extensions/goal/docs/design.md))
 - `/context-budget`, which attributes this session's context window to the
   prompt, tool schemas, context files, and history that are filling it
+- agent metadata published to tmux (`@agent.*`), so tools reading the pane get
+  ground truth — provider, model, session id, and a live `idle`/`busy`/`waiting`
+  state — instead of scraping the rendered TUI. `waiting` is the one no
+  heuristic can produce: a session sitting on a question
 - a session title taken from the first prompt, so a pane reads
   `π - fix the flaky auth test - repo` rather than the directory six times over;
   `/rename` when the first prompt was not what the session became
