@@ -10,40 +10,35 @@ kept the part worth copying — the model may only report `complete` or `blocked
 while set, pause, resume, and clear stay the user's — and dropped the budget and
 token accounting, which had no consumer here.
 
+Also shipped: `/context-budget`, as `extensions/context-budget`. This file said
+a Claude-style breakdown needed data pi does not expose; most of it turned out
+to be exposed after all. `getSystemPrompt()` plus the section splitter in
+`extensions/shared/prompt-sections.ts` gives tokens per prompt section;
+`getAllTools()` carries each schema with a `sourceInfo` naming the extension
+that registered it; `getSystemPromptOptions()` returns context files and skills
+as structured data. Three gaps are real and remain:
+
+- **Tokens after pi's pre-provider transforms.** The wire payload would be
+  exact, and `before_provider_request` carries it — but that event never fires
+  for `openai-codex`, measured, so anything depending on it is blank on this
+  setup's own default model.
+- **Compaction state beyond total usage.** No last boundary, summary tokens, or
+  kept-recent tokens. Even the reserve is unexposed: the extension reads
+  `settings.json` and falls back to pi's 16384, labelled so a drifted default
+  shows up as a wrong label rather than a wrong number.
+- **A real tokenizer.** Still `chars / 4`, so the report ranks contributors and
+  says which single figure is the provider's own count.
+
+One caveat found the hard way: before the first turn, `getSystemPrompt()` has
+not been through `before_agent_start`, so everything extensions append to it is
+missing — 3.2 KB of engineering policy here, 13% of the prompt. The command says
+so rather than reporting the smaller number as fact.
+
 Two things stayed behind deliberately. The managed-runtime sandbox work
 (Bubblewrap namespaces, credential leasing, ACL-level write evidence) was
 Linux-only and is not being ported. Host-specific configuration history and
 notes on non-public source live in the private archive; nothing here should
 grow a reference to either.
-
-## Context observability
-
-A `/context-budget` command reporting what pi's extension API already exposes:
-active model, current tokens and context window, percent used, tokens until
-compaction, computed reserve and max output, system prompt size, loaded context
-files, skills count, and active tool selection.
-
-`extensions/shared/context-utilization.ts` already does the percent and
-token formatting for child agents, so a command would reuse it rather than
-start over.
-
-What pi does not expose, and what a Claude-style `/context` breakdown would
-need first:
-
-- Tokens by system prompt section.
-- Tokens by tool schema, separating built-ins from custom and MCP tools.
-- Tokens by message category: user text, assistant text, tool calls, tool
-  results, images, attachments.
-- Tokens by source: project files, context files, skills, prompt templates.
-- Tokens after pi's pre-provider transforms, not raw session history.
-- Compaction state beyond total usage — last boundary, summary tokens, kept
-  recent tokens, stale-trigger suppression.
-
-Without those, estimates fall back to `chars / 4`, which is fine for a live
-gut-check and not fine for a breakdown table that looks authoritative.
-
-One constraint worth keeping: the command must not print context file contents
-or prompt text. Both routinely carry private project instructions.
 
 ## Session topology
 

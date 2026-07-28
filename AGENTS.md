@@ -6,8 +6,10 @@ pi loads `extensions/`, `skills/`, and `themes/` from there at startup.
 ## Layout
 
 - `extensions/<name>/` — one pi extension per directory, each its own npm package
-  with its own `package.json` and lockfile. `index.ts` is the entry point; larger
-  extensions keep implementation in `src/` and colocate `*.test.ts` at the root.
+  with its own `package.json`, and its own lockfile once it has dependencies.
+  Extensions with none (`goal`, `loop`, `sleep`, `context-budget`) carry no
+  lockfile. `index.ts` is the entry point; larger extensions keep implementation
+  in `src/` and colocate `*.test.ts` at the root.
 - `extensions/shared/` — cross-extension helpers. No package.json; imported by
   relative path.
 - `skills/<name>/SKILL.md` — model-facing docs loaded on demand.

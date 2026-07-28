@@ -1,0 +1,8 @@
+{
+  "name": "context-budget",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit -p ."
+  }
+}
