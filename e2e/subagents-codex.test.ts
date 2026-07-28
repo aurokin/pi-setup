@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { Effect } from "effect";
 import { codexBackend } from "../extensions/subagents/src/backends/codex.ts";
@@ -13,8 +16,13 @@ import {
   runTool,
 } from "../extensions/subagents/src/runtime.ts";
 
+// A scratch directory rather than this checkout: these spawn a live agent, and
+// a permission-bypassed one pointed at the repo can edit the very files the
+// suite is testing.
+const cwd = mkdtempSync(join(tmpdir(), "codex-live-"));
+
 const parent: ParentContext = {
-  parentCwd: process.cwd(),
+  parentCwd: cwd,
   projectTrusted: false,
 };
 
@@ -23,7 +31,7 @@ function task(prompt: string, role: RoleName = "reader"): SpawnTask {
     prompt,
     role,
     title: "live Codex test",
-    cwd: process.cwd(),
+    cwd,
     parent,
   };
 }

@@ -11,6 +11,9 @@
  */
 
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { Effect } from "effect";
 import { isModelVisible } from "../extensions/subagents/src/by-the-way.ts";
@@ -28,8 +31,13 @@ import {
   runTool,
 } from "../extensions/subagents/src/runtime.ts";
 
+// A scratch directory rather than this checkout: these spawn a live agent with
+// `worker` access, and a permission-bypassed one pointed at the repo can edit
+// the very files the suite is testing.
+const cwd = mkdtempSync(join(tmpdir(), "primary-live-"));
+
 const parent: ParentContext = {
-  parentCwd: process.cwd(),
+  parentCwd: cwd,
   projectTrusted: false,
 };
 
@@ -40,7 +48,7 @@ function primaryTask(prompt: string): SpawnTask {
     prompt,
     role: "worker",
     title: "primary runtime",
-    cwd: process.cwd(),
+    cwd,
     model: "opus",
     reasoningEffort: "low",
     parent,
@@ -137,7 +145,7 @@ test(
               prompt: `Count slowly to 40, then reply done ${n}.`,
               role: "reader",
               title: `filler ${n}`,
-              cwd: process.cwd(),
+              cwd,
               model: "opus",
               reasoningEffort: "low",
               parent,
@@ -155,7 +163,7 @@ test(
             prompt: "Reply with exactly: nope",
             role: "reader",
             title: "over cap",
-            cwd: process.cwd(),
+            cwd,
             model: "opus",
             reasoningEffort: "low",
             parent,

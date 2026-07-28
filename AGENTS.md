@@ -1,17 +1,19 @@
 # AGENTS.md
 
-This repo is a pi coding-agent configuration. It is cloned to `~/.pi/agent`, and
-pi loads `extensions/`, `skills/`, and `themes/` from there at startup.
+This repo is a pi coding-agent configuration. It is checked out here, and
+`extensions/` and `themes/` are symlinked into `~/.pi/agent`, so a committed
+extension is live in the next session with nothing to install. Skills are linked
+one at a time — `~/.pi/agent/skills` is a real directory — so a new
+`skills/<name>/` does nothing until it is symlinked. SETUP.md has the commands.
 
 ## Layout
 
-- `extensions/<name>/` — one pi extension per directory, each its own npm package
-  with its own `package.json`, and its own lockfile once it has dependencies.
-  Extensions with none (`goal`, `loop`, `sleep`, `context-budget`) carry no
-  lockfile. `index.ts` is the entry point; larger extensions keep implementation
-  in `src/` and colocate `*.test.ts` at the root.
-- `extensions/shared/` — cross-extension helpers. No package.json; imported by
-  relative path.
+- `extensions/<name>/` — one pi extension per directory, usually its own npm
+  package, with a lockfile once it has dependencies and none before that.
+  `index.ts` is the entry point; larger extensions keep implementation in `src/`
+  and colocate `*.test.ts` at the root.
+- `extensions/shared/` and `extensions/workflows/` have no package.json at all.
+  `shared/` is cross-extension helpers, imported by relative path.
 - `skills/<name>/SKILL.md` — model-facing docs loaded on demand.
 - An extension may also generate a skill: it renders one at startup and returns
   the path from `resources_discover`. `extensions/subagents/skill/` is the
@@ -63,8 +65,9 @@ with-secret factory -- node --test --experimental-strip-types e2e/subagents-droi
 with-secret cursor  -- node --test --experimental-strip-types e2e/subagents-cursor.test.ts
 ```
 
-Both spawn a live agent with `worker` access, so both run in a scratch
-directory rather than this checkout.
+Every subagent suite spawns a live, permission-bypassed agent, so all four —
+codex, claude/primary, droid, cursor — run in a scratch directory rather than
+this checkout.
 
 What e2e does **not** cover is whether the engineering policy in
 `extensions/shared/engineering-policy.ts` actually changes model behavior. That
