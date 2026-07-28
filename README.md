@@ -32,6 +32,13 @@ Ours:
   ([design](extensions/loop/docs/design.md))
 - `/goal`, an objective restated to the model every turn, which only you can
   change ([design](extensions/goal/docs/design.md))
+- `/context-budget`, which attributes this session's context window to the
+  prompt, tool schemas, context files, and history that are filling it
+- Droid and Cursor subagent backends on top of upstream's three, plus a
+  `subagents` skill rendered at startup from the harnesses actually configured,
+  so it can never list one that is not there
+- `/runtime`, which routes this session's prompts to Claude Code and back
+  without losing either conversation
 
 ## Setup
 
@@ -59,7 +66,7 @@ regression. Everything that needs credentials or a running pi lives in `e2e/`,
 including the only detector for the codex compaction beta flag being withdrawn
 — worth running on a schedule rather than only on change.
 
-Each extension under `extensions/` is its own npm package with its own lockfile, so the root install alone is not enough.
+Most directories under `extensions/` are their own npm package, with a lockfile once they have dependencies, so the root install alone is not enough.
 
 ## Tracking upstream
 

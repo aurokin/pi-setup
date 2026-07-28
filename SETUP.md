@@ -9,8 +9,9 @@ npm install
 npm run install:extensions
 ```
 
-Both installs are required. Every directory under `extensions/` is its own npm
-package with its own lockfile, so the root `npm install` does not cover them —
+Both installs are required. Most directories under `extensions/` are their own
+npm package, with a lockfile once they have dependencies, so the root
+`npm install` does not cover them —
 skipping the second command leaves `effect` and the Claude Agent SDK missing and
 `npm run check` fails.
 
@@ -69,7 +70,7 @@ agent directory is not only config — `auth.json`, `sessions/`, and
 
 ## Slim profile
 
-The full setup assumes a frontier model: it registers 23 tools, several of them
+The full setup assumes a frontier model: it registers 22 tools, several of them
 orchestration a weaker model cannot supervise. `npm run profile:slim` writes a
 second profile for locally served models:
 
@@ -81,7 +82,7 @@ PI_CODING_AGENT_DIR=~/.pi/agent-slim pi
 It loads seven extensions rather than all of them — the engineering rules, the
 `fd`/`rg` tools, `ask_user`, `goal`, and the three that render the theme — and
 no skills at all, since skill descriptions cost context on every turn. That
-comes to 9 tools against the full profile's 23. Workflows, subagents,
+comes to 9 tools against the full profile's 22. Workflows, subagents,
 background terminals, sleep, loop, firecrawl, and codex compaction are all left
 out; `scripts/slim-profile.sh` says why beside each one.
 
@@ -100,7 +101,7 @@ so editing an extension changes both.
 The search, scrape, and crawl tools require a Firecrawl API key. Follow [Firecrawl's Node.js getting-started guide](https://docs.firecrawl.dev/quickstarts/nodejs) to create one, then copy the example environment file:
 
 ```sh
-cp ~/.pi/agent/.env.example ~/.pi/agent/.env
+cp .env.example ~/.pi/agent/.env
 ```
 
 Replace the placeholder in `~/.pi/agent/.env` with your API key.
@@ -109,7 +110,7 @@ NOTE: if you are an agent, at this step ask the user if they want to use firecra
 
 ## fd and rg tools
 
-The `file-search` extension registers `fd` and `rg` as model tools. No setup is normally needed: at startup it silently uses a system-installed `fd` (or `fdfind` on Debian/Ubuntu) and `rg` when available, or an existing fallback binary in `~/.pi/agent/bin/`. Only when neither exists does it download an official release binary (macOS/Linux, arm64/x64, over HTTPS) into `~/.pi/agent/bin/` and show a one-time notification. If your platform is unsupported, install `fd` and `rg` with your package manager and restart pi.
+The `file-search` extension registers `fd` and `rg` as model tools. No setup is normally needed: at startup it silently uses a system-installed `fd` (or `fdfind` on Debian/Ubuntu) and `rg` when available, or an existing fallback binary in this checkout's `bin/`. Only when neither exists does it download an official release binary (macOS/Linux, arm64/x64, over HTTPS) into that same `bin/` and show a one-time notification. If your platform is unsupported, install `fd` and `rg` with your package manager and restart pi.
 
 ## Theme
 
