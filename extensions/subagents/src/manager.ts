@@ -54,6 +54,18 @@ import {
 export const MAX_RUNNING = 5;
 export const MAX_TRACKED = 64;
 const STOP_TIMEOUT_MS = 5_000;
+
+/**
+ * How long a settlement is held when the backend still has queued messages,
+ * waiting for the next turn to start.
+ *
+ * Generous on purpose: the cost of being too long is a delayed result, while
+ * the cost of being too short is the premature one this exists to prevent. It
+ * is a backstop for a backend that settles and then never dequeues, not a
+ * scheduling parameter — every healthy backend starts the next turn in the
+ * same tick.
+ */
+const QUEUED_TURN_GRACE_MS = 30_000;
 const ERROR_TEXT_MAX_LENGTH = 4_096;
 const TRANSCRIPT_TEXT_MAX_LENGTH = 64 * 1_024;
 const LIVE_ASSISTANT_MAX_LENGTH = 128 * 1_024;
@@ -111,6 +123,12 @@ interface Entry {
   /** Idle restart dispatched but RunStarted not folded yet; counts as running
    * so concurrent restarts cannot race past the cap. */
   restarting?: boolean;
+  /**
+   * Set when a turn settled with messages still queued behind it, so the run
+   * is finished but the *work* is not. Cleared by the next RunStarted, or by
+   * the grace timer if that never comes. See `settle`.
+   */
+  queuedGrace?: ReturnType<typeof setTimeout>;
 }
 
 // --- Read model ----------------------------------------------------------------
@@ -161,18 +179,13 @@ export interface SubagentManagerShape {
    * these ids are marked "consumed". Interruption (tool abort) releases the
    * interest and leaves the subagents running.
    *
-   * KNOWN GAP — a follow-up sent to a *busy* subagent. The subprocess and SDK
+   * A follow-up sent to a *busy* subagent does not end the wait early. The
    * backends emit RunSettled and only then dequeue, so between those two the
-   * run reads as settled with a message still outstanding: this returns, and
-   * the parent is handed that turn's output as the run's result. The queued
-   * message is not lost — it runs, and settles again — so the symptom is a
-   * premature and misleading result rather than a dropped one. Measured live
-   * on cursor; codex and droid queue the same way. `entry.restarting` covers
-   * the mirror case (a send to an already-settled child) and could plausibly
-   * be set when settling with a non-empty queue, but that risks waiting
-   * forever if the queued run never starts, so it is a deliberate open
-   * question rather than an oversight. See
-   * `e2e/subagents-cursor.test.ts`, which asserts the current behaviour.
+   * run reads as settled with a message still outstanding; `settle` holds that
+   * settlement rather than publishing it, which keeps this waiting and keeps
+   * the parent from being handed one turn's output as the run's result. The
+   * hold is bounded — see QUEUED_TURN_GRACE_MS — so a backend that settles and
+   * never dequeues delays the result instead of stranding it.
    */
   waitFor(
     ids: ReadonlyArray<string>,
@@ -288,7 +301,15 @@ const makeManager = Effect.gen(function* () {
   };
 
   const closeEntryScope = (entry: Entry) =>
-    Scope.close(entry.scope, Exit.void).pipe(Effect.ignore);
+    Effect.suspend(() => {
+      // A held settlement has nobody left to deliver to once the entry is
+      // going away, and its timer must not outlive the scope.
+      if (entry.queuedGrace) {
+        clearTimeout(entry.queuedGrace);
+        entry.queuedGrace = undefined;
+      }
+      return Scope.close(entry.scope, Exit.void).pipe(Effect.ignore);
+    });
 
   const pruneSettled = () => {
     if (entries.size <= MAX_TRACKED) return;
@@ -311,9 +332,39 @@ const makeManager = Effect.gen(function* () {
     }
   };
 
+  /**
+   * Publish a settlement: tell the UI, then hand the result to the parent.
+   * Split out of `settle` because a settlement with queued work behind it is
+   * published later — or not at all, if the next turn supersedes it.
+   */
+  const deliverSettled = (entry: Entry) => {
+    const s = entry.snapshot;
+    const consumed = (waitInterest.get(s.id) ?? 0) > 0;
+    notify(s.id);
+    try {
+      // During teardown, don't queue results into a shutting-down session.
+      if (!disposed) onSettled?.(s, consumed);
+    } catch {
+      // The parent session may be unavailable; settlement stays final.
+    }
+    // Pruning belongs here rather than in `settle`, so that a settlement
+    // published late by the grace timer is bounded like any other. Leaving it
+    // behind would let held entries accumulate past MAX_TRACKED until some
+    // unrelated run happened to settle normally.
+    pruneSettled();
+  };
+
+  /** Stop holding a settlement, without publishing it. */
+  const clearQueuedGrace = (entry: Entry) => {
+    if (!entry.queuedGrace) return;
+    clearTimeout(entry.queuedGrace);
+    entry.queuedGrace = undefined;
+  };
+
   const settle = (entry: Entry, outcome: RunOutcome) => {
     const s = entry.snapshot;
     entry.restarting = false;
+    clearQueuedGrace(entry);
     if (s.status !== "running") return;
     s.settledAt = Date.now();
     switch (outcome._tag) {
@@ -343,16 +394,31 @@ const makeManager = Effect.gen(function* () {
     s.liveAssistant = undefined;
     entry.liveToolMap.clear();
     s.liveTools = [];
+    const hadQueued = s.queued.length > 0;
     s.queued = [];
-    const consumed = (waitInterest.get(s.id) ?? 0) > 0;
-    notify(s.id);
-    try {
-      // During teardown, don't queue results into a shutting-down session.
-      if (!disposed) onSettled?.(s, consumed);
-    } catch {
-      // The parent session may be unavailable; settlement stays final.
+
+    // A turn that settles with messages still behind it has finished a turn,
+    // not the work. Backends emit RunSettled and only then dequeue, so
+    // delivering here hands the parent this turn's output as the run's result
+    // and lets waitFor return while its follow-up is still pending. Hold both
+    // until the next turn starts — it will settle in its own right — but only
+    // for a bounded time, because a run that never starts must not strand the
+    // result or leave waitFor waiting forever.
+    if (hadQueued && !disposed) {
+      entry.restarting = true;
+      clearTimeout(entry.queuedGrace);
+      entry.queuedGrace = setTimeout(() => {
+        entry.queuedGrace = undefined;
+        entry.restarting = false;
+        deliverSettled(entry);
+      }, QUEUED_TURN_GRACE_MS);
+      // Never hold the process open for a queued turn that may not come.
+      entry.queuedGrace.unref?.();
+      notify(s.id);
+      return;
     }
-    pruneSettled();
+
+    deliverSettled(entry);
   };
 
   const foldEvent = (entry: Entry, event: SubagentEvent) => {
@@ -360,6 +426,9 @@ const makeManager = Effect.gen(function* () {
     switch (event._tag) {
       case "RunStarted":
         entry.restarting = false;
+        // The queued turn arrived, so the settlement being held is superseded:
+        // this turn will settle in its own right and deliver then.
+        clearQueuedGrace(entry);
         s.status = "running";
         s.settledAt = undefined;
         s.errorText = undefined;

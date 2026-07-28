@@ -275,3 +275,37 @@ test("send steers an idle subagent into another turn", async () => {
     assert.match(afterSecond?.finalText ?? "", /Second turn/);
   });
 });
+
+test("a follow-up sent to a busy subagent holds the first turn's settlement", async () => {
+  await withManager(async (manager, runtime) => {
+    const settled: Array<{ id: string; finalText: string }> = [];
+    manager.view.setOnSettled((snap) =>
+      settled.push({ id: snap.id, finalText: snap.finalText }),
+    );
+
+    const snap = await runTool(
+      runtime,
+      manager.spawn("claude", task("First turn")),
+    );
+    // Sent while the first turn is still streaming, so the backend queues it.
+    await runTool(runtime, manager.send(snap.id, "Second turn"));
+
+    await runTool(runtime, manager.waitFor([snap.id]));
+
+    // waitFor must not have returned on the first turn: the queued message was
+    // outstanding, and returning there hands back the wrong turn's output.
+    const done = manager.view.get(snap.id);
+    assert.equal(done?.status, "done");
+    assert.match(done?.finalText ?? "", /Second turn/);
+
+    // And the parent is told once, about the run, not once per turn.
+    assert.equal(
+      settled.length,
+      1,
+      `expected one settlement, got ${settled.length}: ${settled
+        .map((s) => s.finalText)
+        .join(" | ")}`,
+    );
+    assert.match(settled[0]!.finalText, /Second turn/);
+  });
+});

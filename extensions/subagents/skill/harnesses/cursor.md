@@ -33,6 +33,9 @@ That is the one role where this harness buys something the roster cannot.
 
 **Thinking budgets:** `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`,
 clamped onto whatever parameter the chosen model actually exposes. On `default`,
-or when the catalog is unreachable, the effort is dropped rather than guessed.
+or when the catalog is unreachable, the effort is dropped rather than guessed —
+which is not the same as running cheap: Grok 4.5's own default is `high`, so a
+`default` child omitting an effort is a high-effort one. Name the model if you
+want a low-effort run.
 
 Requires `CURSOR_API_KEY` in the environment.

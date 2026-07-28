@@ -174,33 +174,24 @@ test(
         manager.send(started.id, "Now reply with exactly: pelican"),
       );
 
-      // What is asserted is only that the message survives, because that is
-      // the part that does not depend on timing. Whether waitFor returns
-      // before or after the queued turn depends on exactly when the first one
-      // settles — and it currently returns early, which is a real wart
-      // documented on SubagentManager.waitFor rather than pinned here, where
-      // asserting it would make this test fail on a fast first turn.
-      await deadline(runTool(runtime, manager.waitFor([started.id])), 45_000);
+      // One wait, and it covers the follow-up however the timing fell. If the
+      // send was queued behind a running turn, the manager holds that turn's
+      // settlement until the queued one starts; if the first turn had already
+      // finished, `restarting` covers it. Both paths are why a single waitFor
+      // may now be trusted to mean "the work is done", not "a turn is done".
+      await deadline(runTool(runtime, manager.waitFor([started.id])), 90_000);
 
-      // The message is queued, not lost: the second turn does run.
-      const deadlineAt = Date.now() + 45_000;
-      while (
-        (manager.view.get(started.id)?.turns ?? 0) < 2 &&
-        Date.now() < deadlineAt
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
       const done = manager.view.get(started.id);
+      assert.equal(done?.status, "done", done?.errorText ?? "");
+      assert.match(
+        done?.finalText ?? "",
+        /pelican/i,
+        "waitFor returned with the first turn's output; the follow-up was not awaited",
+      );
       assert.ok(
         (done?.turns ?? 0) >= 2,
-        `queued follow-up never ran (turns: ${done?.turns})`,
+        `follow-up never ran (turns: ${done?.turns})`,
       );
-      // Needed, not belt-and-braces: `turns` increments on an assistant
-      // message, so two turns does not imply the run has settled and
-      // finalText may not be written yet. Safe to call when it already has —
-      // waitFor filters on status, so a settled entry returns at once.
-      await deadline(runTool(runtime, manager.waitFor([started.id])), 45_000);
-      assert.match(manager.view.get(started.id)?.finalText ?? "", /pelican/i);
     } finally {
       await runtime.dispose();
     }
