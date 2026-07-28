@@ -54,6 +54,12 @@ Run the whole e2e suite periodically, before trusting recall on a long session,
 and before a pi version bump. Skips rather than failures mean a credential is
 absent, not that anything is wrong.
 
+`pane-metadata.test.ts` is the exception to "costs money": it drives a real pi
+in a real tmux pane but never takes a turn, so it calls no provider. It needs
+`tmux` and `pi` on PATH and skips without them. Run it freely — it is two
+seconds, and it covers the wiring in `agent-metadata` and `session-title` that
+unit tests structurally cannot.
+
 The subagent backends each need their own, and each skips without it: codex and
 claude need their CLI authenticated, `subagents-droid` needs `FACTORY_API_KEY`
 and a `droid` on PATH, `subagents-cursor` needs `CURSOR_API_KEY`. So a bare
