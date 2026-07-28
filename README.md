@@ -34,6 +34,9 @@ Ours:
   change ([design](extensions/goal/docs/design.md))
 - `/context-budget`, which attributes this session's context window to the
   prompt, tool schemas, context files, and history that are filling it
+- a session title taken from the first prompt, so a pane reads
+  `π - fix the flaky auth test - repo` rather than the directory six times over;
+  `/rename` when the first prompt was not what the session became
 - Droid and Cursor subagent backends on top of upstream's three, plus a
   `subagents` skill rendered at startup from the harnesses actually configured,
   so it can never list one that is not there
