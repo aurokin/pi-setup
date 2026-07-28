@@ -61,15 +61,23 @@ const assistant = (text: string) => ({
   content: [{ type: "output_text", text }],
 });
 
+/**
+ * Three facts stated once, early, and never repeated.
+ *
+ * None of them is credential-shaped on purpose. Labelling ALPHA-7731 a "deploy
+ * key" made the model answer "**[redacted for security]**" — a recall test that
+ * the artifact passed and the assertion failed, because the probe asked the
+ * model to print something it will not print.
+ */
 const FACTS = {
-  "ALPHA-7731": "deploy key",
+  "ALPHA-7731": "release tag",
   "bront.internal": "staging host",
   Dana: "on-call",
 };
 
 const conversation = [
-  user("My deploy key is ALPHA-7731 and the staging host is bront.internal."),
-  assistant("Noted: deploy key ALPHA-7731, staging host bront.internal."),
+  user("My release tag is ALPHA-7731 and the staging host is bront.internal."),
+  assistant("Noted: release tag ALPHA-7731, staging host bront.internal."),
   user("The on-call engineer is Dana."),
   assistant("Understood, on-call is Dana."),
 ];
@@ -153,7 +161,7 @@ test(
     });
 
     const question = user(
-      "From the earlier conversation, state the deploy key, the staging host, and the on-call name.",
+      "From the earlier conversation, state the release tag, the staging host, and the on-call name.",
     );
 
     // Exercise the real swap path rather than hand-placing the artifact: this
