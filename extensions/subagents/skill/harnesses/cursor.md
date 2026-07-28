@@ -7,11 +7,18 @@
 
 **Harness:** `cursor`
 **Prompt nicknames:** "cursor", "cursor agent", "cursor subagent"
-**Best default:** `default` (Cursor's own pick), and only when the user asks for
-this harness.
+**Best default:** `default`, and only when the user asks for this harness.
+`default` is Cursor's Auto, which **currently resolves to Grok 4.5** — Cursor's
+choice, not a fixed id, so it can move without notice. Name a model explicitly
+if which one you get matters.
 
 Model ids are the SDK catalog's plain ids — `default`, `composer-2.5`,
 `gpt-5.6-sol` — **not** the `cursor-grok-4.5-low` names the CLI prints.
+
+One consequence worth using: Grok is a different model family from both the
+Claude and GPT routes above, so a cursor `advisor` or `rubber-duck` is a
+genuinely independent second opinion rather than the same family re-asked.
+That is the one role where this harness buys something the roster cannot.
 
 **Two limitations that change what you may send here.**
 
