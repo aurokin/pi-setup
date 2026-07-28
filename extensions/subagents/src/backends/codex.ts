@@ -162,7 +162,7 @@ function preferredCodexEffort(effort: ReasoningEffort | undefined) {
 }
 
 /** Clamp against model/list because, for example, some models use none instead of minimal. */
-function supportedCodexEffort(
+export function supportedCodexEffort(
   effort: ReasoningEffort | undefined,
   modelLabel: string | undefined,
   modelList: JsonRecord | undefined,
