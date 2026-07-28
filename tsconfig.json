@@ -10,5 +10,5 @@
     "types": ["node"],
     "verbatimModuleSyntax": true
   },
-  "include": ["extensions/**/*.ts", "e2e/**/*.ts"]
+  "include": ["extensions/**/*.ts", "e2e/**/*.ts", "tools/**/*.ts"]
 }

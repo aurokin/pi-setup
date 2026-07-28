@@ -19,9 +19,10 @@
   "scripts": {
     "check": "tsc --noEmit",
     "install:extensions": "for d in extensions/*/; do if [ -f \"$d/package.json\" ]; then npm install --prefix \"$d\" || exit 1; fi; done",
-    "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"*.json\"",
-    "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"*.json\"",
-    "test": "node --test --experimental-strip-types extensions/*/*.test.ts && npm --prefix extensions/file-search test",
+    "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
+    "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
+    "test": "node --test --experimental-strip-types extensions/*/*.test.ts tools/*/*.test.ts && npm --prefix extensions/file-search test",
+    "prompt": "node --experimental-strip-types tools/prompt-inspector/inspect.ts",
     "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts",
     "profile:slim": "./scripts/slim-profile.sh"
   }

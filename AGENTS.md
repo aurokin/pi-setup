@@ -15,6 +15,10 @@ pi loads `extensions/`, `skills/`, and `themes/` from there at startup.
   the path from `resources_discover`. `extensions/subagents/skill/` is the
   source for one — edit the markdown there, never the rendered copy under
   `~/.pi/agent/generated-skills/`.
+- `tools/<name>/` — developer tooling for working on this repo, not loaded by
+  pi. Same toolchain and conventions as extensions; `*.test.ts` runs under
+  `npm test`. `tools/prompt-inspector/` reports what the model actually
+  receives on a turn.
 
 ## Commands
 
@@ -24,6 +28,7 @@ npm run check                               # tsc --noEmit across the repo
 npm test                                    # node:test + file-search vitest, hermetic, ~25s
 npm run test:e2e                            # live: real pi, real provider, costs money
 npm run format                              # prettier
+npm run prompt -- --open                    # what the model receives on a turn; free
 ```
 
 Run `check` and `format` before finishing a change.

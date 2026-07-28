@@ -21,6 +21,10 @@ extensions/summaries/config.private.json.*.tmp
 *.pem
 *.key
 
+# Prompt inspector output. Contains the full prompt — context files, every tool
+# description — and this repo is public.
+prompt-report.html
+
 # Logs and temporary files
 *.log
 *.tmp
