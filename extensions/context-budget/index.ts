@@ -20,9 +20,10 @@ import type {
   ExtensionAPI,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  DEFAULT_COMPACTION_SETTINGS,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 import {
   buildReport,
   measureEntries,
@@ -32,41 +33,38 @@ import {
 } from "./src/report.ts";
 
 /**
- * pi's own default when `compaction.reserveTokens` is unset.
- *
- * Duplicated rather than read, because the extension API exposes no compaction
- * settings. It is reported as "pi default" so a stale copy is visible as a
- * wrong label rather than a silently wrong number.
- */
-const DEFAULT_RESERVE_TOKENS = 16_384;
-
-function readCompactionFrom(path: string) {
-  try {
-    return JSON.parse(readFileSync(path, "utf8"))?.compaction as
-      { reserveTokens?: unknown; enabled?: unknown } | undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
  * The compaction settings actually in force.
  *
- * pi deep-merges `<cwd>/.pi/settings.json` over the agent-wide file, so a
- * project that sets its own reserve gets a different compaction line — and
- * reading only the global file would report headroom against the wrong one.
+ * Read through `SettingsManager` rather than by parsing the JSON, so the
+ * global/project merge *and* the project-trust rules are pi's own. Reading
+ * `<cwd>/.pi/settings.json` directly would report headroom against a reserve pi
+ * is ignoring, in any repo the user has not trusted.
  */
-function readCompactionSettings(cwd: string) {
-  const global = readCompactionFrom(join(getAgentDir(), "settings.json"));
-  const project = readCompactionFrom(join(cwd, ".pi", "settings.json"));
-  const reserve = project?.reserveTokens ?? global?.reserveTokens;
-  const enabled = project?.enabled ?? global?.enabled;
-  return {
-    reserveTokens:
-      typeof reserve === "number" ? reserve : DEFAULT_RESERVE_TOKENS,
-    reserveIsDefault: typeof reserve !== "number",
-    compactionEnabled: enabled !== false,
-  };
+function readCompactionSettings(ctx: ExtensionCommandContext) {
+  // `CompactionSettings` types every field optional, so pi's own default table
+  // needs a floor before it can stand in for a number.
+  const defaultReserve = DEFAULT_COMPACTION_SETTINGS.reserveTokens ?? 0;
+  try {
+    const settings = SettingsManager.create(ctx.cwd, undefined, {
+      projectTrusted: ctx.isProjectTrusted(),
+    }).getCompactionSettings();
+    return {
+      reserveTokens: settings.reserveTokens,
+      // Equality, not provenance — pi's resolver reports a number, not whether
+      // it came from a file. A reserve set to exactly the default is labelled
+      // as the default, which is the same figure either way.
+      reserveIsDefault: settings.reserveTokens === defaultReserve,
+      compactionEnabled: settings.enabled,
+    };
+  } catch {
+    // Unreadable settings are pi's problem to report. A budget report that
+    // throws is worse than one that states the defaults.
+    return {
+      reserveTokens: defaultReserve,
+      reserveIsDefault: true,
+      compactionEnabled: true,
+    };
+  }
 }
 
 function collect(
@@ -76,7 +74,7 @@ function collect(
 ): BudgetInput {
   const usage = ctx.getContextUsage();
   const options = ctx.getSystemPromptOptions();
-  const compaction = readCompactionSettings(ctx.cwd);
+  const compaction = readCompactionSettings(ctx);
 
   const active = new Set(pi.getActiveTools());
   const tools: ToolEntry[] = pi.getAllTools().map((tool) => ({

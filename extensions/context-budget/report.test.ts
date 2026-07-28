@@ -261,6 +261,26 @@ test("a message with no content is measured rather than dropped", () => {
   assert.ok(measured!.chars > 0);
 });
 
+test("an image costs what pi charges for one, not its base64 length", () => {
+  // pi prices every image at a flat 4800 chars. Measuring the block instead
+  // charged a pasted screenshot ~1.4M chars — more tokens than the window
+  // holds, and enough to bury every other row in the report.
+  const [measured] = measureEntries([
+    {
+      type: "message",
+      message: {
+        role: "user",
+        content: [
+          { type: "text", text: "look" },
+          { type: "image", source: { data: "A".repeat(1_000_000) } },
+        ],
+      },
+    },
+  ]);
+  assert.ok(measured!.chars < 5_000);
+  assert.ok(measured!.chars > 4_800);
+});
+
 test("history is grouped by role, heaviest first", () => {
   const byRole = messagesByRole(input().messages);
   assert.deepEqual(

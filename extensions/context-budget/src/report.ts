@@ -153,10 +153,32 @@ function textLength(value: unknown) {
   return typeof value === "string" ? value.length : 0;
 }
 
+/**
+ * What pi charges for an image in a chars/4 estimate, regardless of its size.
+ *
+ * Copied from `ESTIMATED_IMAGE_CHARS` in pi's compaction module, which does not
+ * export it. Measuring the block instead would count its base64 payload: a
+ * single pasted screenshot then reports more tokens than the window holds, and
+ * buries every other row in the history line.
+ */
+const ESTIMATED_IMAGE_CHARS = 4800;
+
+function blockChars(block: unknown) {
+  const shape = (block ?? {}) as { type?: unknown };
+  if (shape.type === "image") return ESTIMATED_IMAGE_CHARS;
+  return JSON.stringify(block ?? "").length;
+}
+
 function messageChars(message: { role?: unknown; content?: unknown }) {
   // Not every message in pi's union carries `content` — a bash execution entry
   // does not — so measure the whole message when it does not.
   const measured = "content" in message ? message.content : message;
+  if (Array.isArray(measured)) {
+    return measured.reduce(
+      (sum: number, block: unknown) => sum + blockChars(block),
+      0,
+    );
+  }
   return JSON.stringify(measured ?? "").length;
 }
 
