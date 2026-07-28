@@ -167,7 +167,21 @@ test(
         20_000,
       );
       assert.equal(result[0]?.cancelled, true);
-      assert.equal(manager.view.get(spawned.id)?.status, "error");
+      const settled = manager.view.get(spawned.id);
+      assert.equal(settled?.status, "error");
+      // `error` is where every failed run lands, so status alone does not say
+      // the cancel is what settled it — an unentitled key reaches the same
+      // state. Measured with a deliberately invalid FACTORY_API_KEY: this test
+      // still passes, and legitimately, because cancelling is a local kill
+      // that works whether or not the key does. The other two fail loudly
+      // there, which is the real signal that a plan has lapsed. This assertion
+      // is not that signal; it is what makes the test check the reason the run
+      // ended rather than accepting any error at all.
+      assert.match(
+        settled?.errorText ?? "",
+        /abort/i,
+        `expected an aborted run, got: ${settled?.errorText}`,
+      );
     } finally {
       await runtime.dispose();
     }
