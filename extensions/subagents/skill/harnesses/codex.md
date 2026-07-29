@@ -1,8 +1,11 @@
-- **`codex`** — GUI work that `agent-browser` cannot reach: native macOS
-  applications, simulators, screenshots of arbitrary windows. Browsers and
-  Electron apps (Slack, VS Code, Figma, Notion) are **not** in this category —
-  the `agent-browser` skill covers them from inside pi and asks to be preferred
-  over any other browser tooling.
+- **`codex`** — **computer-use.** Codex ships an advanced computer-use harness:
+  it drives the machine itself — clicking, typing, and reading the screen —
+  rather than scripting an application through an API. That is the capability
+  to send it, and it is the reason to prefer it for GUI work `agent-browser`
+  cannot reach: native macOS applications, simulators, screenshots of arbitrary
+  windows. Browsers and Electron apps (Slack, VS Code, Figma, Notion) are
+  **not** in this category — the `agent-browser` skill covers them from inside
+  pi and asks to be preferred over any other browser tooling.
 <!-- section -->
 ## Codex Harness
 

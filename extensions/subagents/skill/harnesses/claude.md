@@ -1,9 +1,10 @@
 - **`claude`** — Claude Code's own harness, authenticated by the Claude
-  subscription rather than API credits. Note it is *not* the only way to reach a
-  Claude model: `opencode` serves opus, sonnet, fable, and haiku to the pi
-  harness directly. So this is a choice of harness and billing path, not of
-  model family. Pick it when the user names Claude Code, or when its own tooling
-  is the point.
+  subscription rather than API credits. **Every Anthropic model goes here
+  unless the user says otherwise.** It is not the only route to one —
+  `opencode` and `openrouter` serve opus, sonnet, fable, and haiku to the pi
+  harness directly — but those spend open-weight credit on inference the
+  subscription already covers. Knowing the other routes exist is for when the
+  user names one; the default is this harness.
 <!-- section -->
 ## Claude Code Harness
 
