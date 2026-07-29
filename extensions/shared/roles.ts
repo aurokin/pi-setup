@@ -30,7 +30,7 @@
  */
 
 import {
-  ENGINEERING_POLICY,
+  PI_AGENT_RULES,
   ENGINEERING_POLICY_CHILD_NOTE,
 } from "./engineering-policy.ts";
 
@@ -194,7 +194,7 @@ export function buildRolePrompt(options: {
   const task = options.task.trim() || options.role.defaultTask || "";
   return [
     options.role.systemPrompt,
-    ...(options.policy === "include" ? [ENGINEERING_POLICY] : []),
+    ...(options.policy === "include" ? [PI_AGENT_RULES] : []),
     ENGINEERING_POLICY_CHILD_NOTE,
     "## Task",
     task,

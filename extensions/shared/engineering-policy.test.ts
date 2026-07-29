@@ -5,24 +5,65 @@ import {
   ENGINEERING_POLICY_BULLETS,
   ENGINEERING_POLICY_CHILD_NOTE,
   ENGINEERING_POLICY_HEADER,
-  appendEngineeringPolicy,
+  PI_AGENT_RULES,
+  PI_WORKSPACE_BULLETS,
+  withAgentRules,
 } from "./engineering-policy.ts";
 
-test("appends the policy to a prompt that lacks it", () => {
-  const result = appendEngineeringPolicy("You are pi.");
+test("adds the rules to a prompt that lacks them", () => {
+  const result = withAgentRules("You are pi.");
   assert.ok(result.startsWith("You are pi."));
-  assert.ok(result.includes(ENGINEERING_POLICY));
+  assert.ok(result.includes(PI_AGENT_RULES));
+});
+
+test("the rules go in front of the project's own instructions", () => {
+  // Appended last, these outranked AGENTS.md by recency — backwards, since the
+  // project is nearest the task and should win. Placement is the whole fix.
+  const prompt =
+    "You are pi.\n\n<project_context>\nRepo rules.\n</project_context>";
+  const result = withAgentRules(prompt);
+  assert.ok(
+    result.indexOf(ENGINEERING_POLICY_HEADER) <
+      result.indexOf("<project_context>"),
+    result,
+  );
+  assert.ok(result.startsWith("You are pi."));
+  assert.ok(
+    result.includes("<project_context>\nRepo rules.\n</project_context>"),
+  );
+});
+
+test("with no project context there is nothing to sit in front of", () => {
+  const result = withAgentRules("You are pi.");
+  assert.ok(result.trimEnd().endsWith(PI_AGENT_RULES.trimEnd()));
+});
+
+test("the portable rules name no pi path, binary or variable", () => {
+  // ENGINEERING_POLICY is carried to other coding agents unchanged; anything
+  // that only means something inside pi belongs in PI_WORKSPACE.
+  assert.doesNotMatch(
+    ENGINEERING_POLICY,
+    /PI_CODING_AGENT_DIR|PI_SESSION_FILE/,
+  );
+  assert.doesNotMatch(ENGINEERING_POLICY, /\.pi\/agent/);
+  assert.doesNotMatch(ENGINEERING_POLICY, /\bpi\b/i);
+});
+
+test("the workspace section carries the pi-specific rule", () => {
+  assert.ok(PI_AGENT_RULES.includes(ENGINEERING_POLICY));
+  const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
+  assert.ok(rule, "the scratch rule moved out of the portable bullets");
 });
 
 test("appending is idempotent across repeated turns", () => {
-  const once = appendEngineeringPolicy("You are pi.");
-  const twice = appendEngineeringPolicy(once);
+  const once = withAgentRules("You are pi.");
+  const twice = withAgentRules(once);
   assert.equal(twice, once);
 });
 
 test("does not re-append when another extension moved the section", () => {
   const reordered = `${ENGINEERING_POLICY}\n\nYou are pi.`;
-  assert.equal(appendEngineeringPolicy(reordered), reordered);
+  assert.equal(withAgentRules(reordered), reordered);
 });
 
 test("policy is its header, then nothing but bullets", () => {
@@ -77,7 +118,7 @@ test("scratch has a destination, and deliverables are carved out of it", () => {
   // without saying where, which lands the file in the user's repo. This rule is
   // that grant's destination, so it has to name a root that always resolves and
   // it has to exclude the file the user actually asked for.
-  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("scratch"));
+  const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
   assert.ok(rule);
   assert.match(rule, /PI_CODING_AGENT_DIR:-\$HOME\/\.pi\/agent/);
   assert.match(rule, /not scratch/);
@@ -89,7 +130,7 @@ test("the scratch root survives being quoted", () => {
   // No shell tilde-expands inside double quotes, so a `~` fallback hands a
   // correctly-quoting model the literal string `~/.pi/agent` and `mkdir -p`
   // makes a directory named `~` in the working tree. $HOME expands either way.
-  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("scratch"));
+  const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
   assert.ok(rule);
   assert.doesNotMatch(rule, /:-~/);
 });
