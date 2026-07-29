@@ -22,7 +22,8 @@ one at a time — `~/.pi/agent/skills` is a real directory — so a new
 - `tools/<name>/` — developer tooling for working on this repo, not loaded by
   pi. Same toolchain and conventions as extensions; `*.test.ts` runs under
   `npm test`. `tools/prompt-inspector/` reports what the model actually
-  receives on a turn.
+  receives on a turn, and is the review surface for prompting we wrote: full
+  tool schemas, the bodies of our own skills, and the subagent role prompts.
 
 ## Commands
 

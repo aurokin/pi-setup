@@ -13,8 +13,9 @@
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { renderReport } from "./render.ts";
+import { join, resolve } from "node:path";
+import { readMessages, readSkills, renderReport } from "./render.ts";
+import { readSkillBodies } from "./skill-bodies.ts";
 
 const args = process.argv.slice(2);
 const open = args.includes("--open");
@@ -71,12 +72,25 @@ try {
   process.exit(1);
 }
 
+// The advertised skills, resolved to bodies for the ones this repo owns. Done
+// here rather than in the renderer so the renderer stays pure — see
+// `skill-bodies.ts` for which skills count as ours and why the rest are not.
+const repoRoot = resolve(import.meta.dirname, "..", "..");
+const instructionText = readMessages(payload)
+  .filter((m) => m.role === "system" || m.role === "developer")
+  .map((m) => m.content)
+  .join("\n\n");
+const locations = readSkills(instructionText)
+  .map((skill) => skill.location)
+  .filter((location): location is string => Boolean(location));
+
 writeFileSync(
   reportPath,
   renderReport(payload, {
     capturedAt: new Date().toISOString(),
     promptText: prompt,
     source: "pi --print",
+    skillBodies: readSkillBodies(locations, repoRoot),
   }),
 );
 

@@ -13,6 +13,19 @@
  *   3. Where did that come from? — headings within the prompt, so a section
  *      can be traced back to the extension or skill that contributed it.
  *
+ * Everything is readable, not merely counted. A tool description is prompting:
+ * it is written by us, it is what the model reads to decide whether to call
+ * the thing, and a report that gave it a row and a byte count could not be
+ * used to review the wording. Same for the skills we generate — `subagents`
+ * exists to be read, and its body is invisible on a turn where nothing loaded
+ * it. So schemas expand to their full text, and our own skills carry their
+ * `SKILL.md` alongside the catalogue entry that advertises them.
+ *
+ * Two things here are *not* part of the captured payload, and are labelled
+ * that way on the page: skill bodies (read on demand) and subagent role
+ * prompts (sent to a child, never to this turn's model). They are included
+ * because they are prompting we wrote and have no other review surface.
+ *
  * Token figures are `chars / 4`. That is honest for comparing two sections and
  * wrong for anything that needs a real number, so the page says so rather than
  * printing a total that looks authoritative.
@@ -30,6 +43,11 @@ import {
   splitSections,
   type PromptSection,
 } from "../../extensions/shared/prompt-sections.ts";
+import {
+  buildRolePrompt,
+  INTERNAL_ROLE_NAMES,
+  ROLE_PROFILES,
+} from "../../extensions/shared/roles.ts";
 
 export {
   byteLength,
@@ -56,6 +74,23 @@ export interface PromptTool {
    */
   readonly text: string;
   readonly bytes: number;
+  /** Absolute path, for a skill catalogue entry. Tools have none. */
+  readonly location?: string;
+  /**
+   * The full body behind the entry, when there is one worth reading and we
+   * are allowed to read it: a tool's pretty-printed JSON schema, or the
+   * `SKILL.md` of a skill this repo owns. Absent means "nothing more to show",
+   * never "empty".
+   */
+  readonly body?: SkillBody;
+}
+
+/** A file's contents, resolved outside this module to keep the renderer pure. */
+export interface SkillBody {
+  readonly text: string;
+  readonly bytes: number;
+  /** Shown so a reader can tell a generated skill from a checked-in one. */
+  readonly origin: string;
 }
 
 export interface CaptureMeta {
@@ -63,6 +98,14 @@ export interface CaptureMeta {
   readonly capturedAt: string;
   readonly promptText: string;
   readonly source?: string;
+  /**
+   * Bodies of the skills this repo owns, keyed by the `<location>` in the
+   * catalogue. Supplied by the runner, because reading files here would cost
+   * the renderer its purity and make a saved payload un-re-renderable on
+   * another machine. Third-party skills are deliberately absent: they are not
+   * ours to review, and their bodies would bury ours.
+   */
+  readonly skillBodies?: Readonly<Record<string, SkillBody>>;
 }
 
 export function escapeHtml(text: string) {
@@ -121,11 +164,19 @@ export function readTools(payload: unknown): PromptTool[] {
         description?: unknown;
       };
       const text = JSON.stringify(tool);
+      // Pretty-printed rather than the wire form, because the point of showing
+      // it is that someone reads the parameter descriptions.
+      const pretty = JSON.stringify(tool, null, 2);
       return {
         name: String(fn?.name ?? "(unnamed)"),
         description: String(fn?.description ?? ""),
         text,
         bytes: byteLength(text),
+        body: {
+          text: pretty,
+          bytes: byteLength(text),
+          origin: "sent this turn",
+        },
       };
     })
     .sort((a, b) => b.bytes - a.bytes);
@@ -138,8 +189,15 @@ export function readTools(payload: unknown): PromptTool[] {
  * single turn — the body is only read on demand, but the catalogue is not. It
  * is the one part of the prompt that grows silently as skills are added, which
  * makes it worth its own table.
+ *
+ * `bodies` attaches the `SKILL.md` behind an entry when the runner resolved
+ * one. That body is not part of this turn's prompt — it is what the model will
+ * read if it follows the advertisement — and the page says so.
  */
-export function readSkills(text: string): PromptTool[] {
+export function readSkills(
+  text: string,
+  bodies: Readonly<Record<string, SkillBody>> = {},
+): PromptTool[] {
   // Whitespace-tolerant: the real catalogue indents every entry, and matching
   // the shape this was first written against found nothing at all.
   const entries = [...text.matchAll(/<skill>\s*([\s\S]*?)\s*<\/skill>/g)];
@@ -150,11 +208,16 @@ export function readSkills(text: string): PromptTool[] {
       const description = /<description>([\s\S]*?)<\/description>/
         .exec(block)?.[1]
         ?.trim();
+      const location = /<location>([\s\S]*?)<\/location>/
+        .exec(block)?.[1]
+        ?.trim();
       return {
         name: name || "(unnamed)",
         description: description ?? "",
         text: entry[0]!,
         bytes: byteLength(entry[0]!),
+        location,
+        body: location ? bodies[location] : undefined,
       };
     })
     .sort((a, b) => b.bytes - a.bytes);
@@ -198,7 +261,13 @@ td, th { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line);
 th { color:var(--dim); font-weight:600; font-size:12px; }
 td.num { text-align:right; color:var(--dim); font-variant-numeric:tabular-nums; }
 .bar { height:5px; background:var(--bar); border-radius:3px; min-width:2px; }
+.track { flex:0 0 18%; margin-left:auto; }
+.track + .meta { margin-left:0; }
 .desc { color:var(--dim); font-size:12px; }
+.pad { padding:0 14px 12px; border-top:1px solid var(--line); }
+pre.flush { border-top:none; padding:12px 0; background:none; }
+.pad details { margin:4px 0 0; }
+.pad .note { padding-bottom:8px; }
 #filter { width:100%; padding:9px 12px; margin:6px 0 2px; background:var(--panel);
           border:1px solid var(--line); border-radius:8px; color:var(--text);
           font-size:13px; }
@@ -263,28 +332,77 @@ function sectionRows(sections: ReadonlyArray<PromptSection>) {
   );
 }
 
-function toolTable(
-  tools: ReadonlyArray<PromptTool>,
-  emptyNote = "No tools in this payload.",
+/**
+ * One expandable row per entry, biggest first.
+ *
+ * Expandable rather than a table because the description *is* the prompting:
+ * truncating it at 160 characters made the page a size report, when what it
+ * needs to support is reading the exact words the model is given. The bar
+ * stays, so the ranking is still legible without opening anything.
+ */
+function entryList(
+  entries: ReadonlyArray<PromptTool>,
+  options: { emptyNote: string; bodyLabel: string },
 ) {
-  if (tools.length === 0)
-    return `<div class="note">${escapeHtml(emptyNote)}</div>`;
-  const max = Math.max(1, ...tools.map((tool) => tool.bytes));
-  const rows = tools
-    .map(
-      (tool) => `<tr data-searchable="${escapeHtml(
-        `${tool.name} ${tool.description}`.toLowerCase(),
-      )}">
-    <td><div class="name">${escapeHtml(tool.name)}</div>
-        <div class="desc">${escapeHtml(tool.description.slice(0, 160))}${tool.description.length > 160 ? "…" : ""}</div></td>
-    <td class="num">${formatBytes(tool.bytes)}</td>
-    <td class="num">~${estimateTokens(tool.text).toLocaleString()}</td>
-    <td style="width:22%">${bar(tool.bytes, max)}</td>
-  </tr>`,
-    )
+  if (entries.length === 0)
+    return `<div class="note">${escapeHtml(options.emptyNote)}</div>`;
+  const max = Math.max(1, ...entries.map((entry) => entry.bytes));
+  return entries
+    .map((entry) => {
+      const search =
+        `${entry.name} ${entry.description} ${entry.body?.text ?? ""}`.toLowerCase();
+      const body = entry.body
+        ? `<details data-searchable="${escapeHtml(search)}">
+      <summary><span class="name">${escapeHtml(options.bodyLabel)}</span>
+        <span class="meta">${escapeHtml(entry.body.origin)} · ${formatBytes(entry.body.bytes)} · ~${estimateTokens(entry.body.text).toLocaleString()} tok</span>
+      </summary>
+      <pre>${escapeHtml(entry.body.text)}</pre>
+    </details>`
+        : "";
+      return `<details data-searchable="${escapeHtml(search)}">
+  <summary><span class="name">${escapeHtml(entry.name)}</span>
+    <span class="track">${bar(entry.bytes, max)}</span>
+    <span class="meta">${formatBytes(entry.bytes)} · ~${estimateTokens(entry.text).toLocaleString()} tok</span>
+  </summary>
+  <div class="pad">
+    <pre class="flush">${escapeHtml(entry.description) || '<span class="desc">(no description)</span>'}</pre>
+    ${entry.location ? `<div class="note">${escapeHtml(entry.location)}</div>` : ""}
+    ${body}
+  </div>
+</details>`;
+    })
     .join("\n");
-  return `<table><thead><tr><th>Tool</th><th class="num">Schema</th><th class="num">Est. tokens</th><th></th></tr></thead>
-<tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * What a subagent is told, per role.
+ *
+ * None of this rides on the turn being captured — a child gets its own request
+ * — so it appears nowhere else in this report, and there is no other place to
+ * read it side by side. Rendered with `policy: "include"`, the shape a Claude
+ * Code or Codex child receives; a pi child inherits the same rules from the
+ * `system-prompt` extension instead and so sees them once, not twice.
+ */
+export function readRolePrompts(): PromptTool[] {
+  const internal = new Set<string>(INTERNAL_ROLE_NAMES);
+  return [...ROLE_PROFILES.values()].map((role) => {
+    const text = buildRolePrompt({
+      role,
+      task: "«the caller's task goes here»",
+      policy: "include",
+    });
+    return {
+      name: internal.has(role.name) ? `${role.name} (internal)` : role.name,
+      description: role.description,
+      text,
+      bytes: byteLength(text),
+      body: {
+        text,
+        bytes: byteLength(text),
+        origin: "sent to the child, not this turn",
+      },
+    };
+  });
 }
 
 export function renderReport(payload: unknown, meta: CaptureMeta): string {
@@ -293,7 +411,9 @@ export function renderReport(payload: unknown, meta: CaptureMeta): string {
   const tools = readTools(payload);
   const instructionText = instructions.map((m) => m.content).join("\n\n");
   const sections = splitSections(instructionText);
-  const skills = readSkills(instructionText);
+  const skills = readSkills(instructionText, meta.skillBodies ?? {});
+  const ourSkills = skills.filter((skill) => skill.body);
+  const roles = readRolePrompts();
   const skillBytes = skills.reduce((sum, skill) => sum + skill.bytes, 0);
   const toolBytes = tools.reduce((sum, tool) => sum + tool.bytes, 0);
   const payloadText = JSON.stringify(payload ?? {});
@@ -341,18 +461,47 @@ export function renderReport(payload: unknown, meta: CaptureMeta): string {
 
 <section>
   <h2>Tool schemas${tools.length ? ` — ${formatBytes(toolBytes)}, largest first` : ""}</h2>
-  ${toolTable(tools)}
+  ${entryList(tools, {
+    emptyNote: "No tools in this payload.",
+    bodyLabel: "Full schema",
+  })}
+  ${
+    tools.length
+      ? `<div class="note">A tool's description and its parameter descriptions are
+         prompting: they are what the model reads to decide whether to call it, and
+         with what. Open a row to review the wording.</div>`
+      : ""
+  }
 </section>
 
 <section>
   <h2>Skills advertised${skills.length ? ` — ${formatBytes(skillBytes)} on every turn` : ""}</h2>
-  ${toolTable(skills, "No skills catalogue in this prompt.")}
+  ${entryList(skills, {
+    emptyNote: "No skills catalogue in this prompt.",
+    bodyLabel: "SKILL.md — read on demand, not sent on this turn",
+  })}
   ${
     skills.length
-      ? `<div class="note">Only the catalogue is here — names, descriptions and paths.
-         Skill bodies are read on demand, but this much is paid on every turn.</div>`
+      ? `<div class="note">The catalogue — name, description, path — is paid on every
+         turn. Bodies are read only when the model follows one, and are shown here for
+         the ${ourSkills.length} skill${ourSkills.length === 1 ? "" : "s"} this repo owns
+         (checked in or generated). Third-party skills show their catalogue entry only:
+         they are not ours to review, and their bodies would bury ours.</div>`
       : ""
   }
+</section>
+
+<section>
+  <h2>Subagent role prompts — ${roles.length}, none sent on this turn</h2>
+  ${entryList(roles, {
+    emptyNote: "No roles defined.",
+    bodyLabel: "Full prompt as the child receives it",
+  })}
+  <div class="note">What a spawned child is told before it reads its task: the role
+  framing, the shared rules, and the note that its final message is the whole
+  deliverable. Shown with the rules included — the shape a Claude Code or Codex child
+  gets. A pi child inherits them from the <code>system-prompt</code> extension instead,
+  so it sees them once rather than twice.</div>
 </section>
 
 <section>

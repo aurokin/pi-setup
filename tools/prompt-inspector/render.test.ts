@@ -9,10 +9,12 @@ import {
   instructionMessages,
   messageText,
   readMessages,
+  readRolePrompts,
   readTools,
   renderReport,
   splitSections,
 } from "./render.ts";
+import { ownerOf } from "./skill-bodies.ts";
 
 const meta = { capturedAt: "2026-07-27T00:00:00.000Z", promptText: "Hello" };
 
@@ -245,5 +247,137 @@ test("a prompt with no skills catalogue reports none rather than failing", () =>
   assert.match(
     renderReport({ messages: [{ role: "developer", content: "hi" }] }, meta),
     /No skills catalogue in this prompt/,
+  );
+});
+
+// A tool description, a skill body and a role prompt are all prompting we
+// wrote. The report exists so they can be read; these guard the reading, not
+// the counting.
+
+test("a tool's description is shown in full, not truncated to a preview", () => {
+  // The first version cut descriptions at 160 characters, which made the page
+  // useless for the thing it is now for: reviewing the exact wording.
+  const long = `Use this when ${"x".repeat(400)} and never otherwise.`;
+  const html = renderReport(
+    {
+      messages: [{ role: "developer", content: "hi" }],
+      tools: [
+        {
+          function: {
+            name: "workflow",
+            description: long,
+            parameters: { properties: { step: { description: "which step" } } },
+          },
+        },
+      ],
+    },
+    meta,
+  );
+  assert.ok(html.includes(escapeHtml(long)), "description was truncated");
+  // The parameter descriptions are prompting too, and only reachable via the
+  // serialized schema.
+  assert.match(html, /which step/);
+});
+
+test("our own skills carry their body; other people's carry only the entry", () => {
+  const catalogue = [
+    "<available_skills>",
+    "  <skill>",
+    "    <name>subagents</name>",
+    "    <description>How to delegate</description>",
+    "    <location>/gen/subagents/SKILL.md</location>",
+    "  </skill>",
+    "  <skill>",
+    "    <name>humanizer</name>",
+    "    <description>Someone else's</description>",
+    "    <location>/elsewhere/humanizer/SKILL.md</location>",
+    "  </skill>",
+    "</available_skills>",
+  ].join("\n");
+  const skills = readSkills(catalogue, {
+    "/gen/subagents/SKILL.md": {
+      text: "# subagents\nSpawn a rubber-duck when stuck.",
+      bytes: 42,
+      origin: "generated",
+    },
+  });
+  const byName = new Map(skills.map((s) => [s.name, s]));
+  assert.equal(byName.get("subagents")!.body?.origin, "generated");
+  assert.equal(byName.get("humanizer")!.body, undefined);
+  assert.equal(
+    byName.get("humanizer")!.location,
+    "/elsewhere/humanizer/SKILL.md",
+  );
+
+  const html = renderReport(
+    { messages: [{ role: "developer", content: catalogue }] },
+    {
+      ...meta,
+      skillBodies: {
+        "/gen/subagents/SKILL.md": {
+          text: "duck!",
+          bytes: 5,
+          origin: "generated",
+        },
+      },
+    },
+  );
+  assert.match(html, /duck!/);
+  // And it is labelled, because a body is not part of the turn being measured.
+  assert.match(html, /read on demand, not sent on this turn/);
+});
+
+test("every subagent role prompt is rendered, internal ones marked", () => {
+  const roles = readRolePrompts();
+  const names = roles.map((role) => role.name);
+  for (const expected of ["reader", "worker", "advisor", "rubber-duck"])
+    assert.ok(names.includes(expected), `${expected} missing from ${names}`);
+  assert.ok(
+    names.includes("side (internal)"),
+    "side is spawnable only by us, and the page should say so",
+  );
+  // The assembled prompt, not just the role's own framing: the shared rules
+  // and the child note are what a child actually reads.
+  const duck = roles.find((role) => role.name === "rubber-duck")!;
+  assert.match(duck.text, /rubber duck/);
+  assert.match(duck.text, /## Engineering Rules/);
+  assert.match(duck.text, /## Task/);
+
+  const html = renderReport({ messages: [] }, meta);
+  assert.match(html, /Subagent role prompts/);
+  assert.match(html, /rubber duck/);
+});
+
+test("ownership follows the real path, not where the symlink sits", () => {
+  // Everything is linked into ~/.pi/agent/skills, ours and other people's
+  // alike, so the link location cannot decide this.
+  assert.equal(
+    ownerOf(
+      "/home/me/code/pi-setup/skills/x/SKILL.md",
+      "/home/me/code/pi-setup",
+    ),
+    "checked in",
+  );
+  assert.equal(
+    ownerOf(
+      "/home/me/.pi/agent/generated-skills/subagents/SKILL.md",
+      "/home/me/code/pi-setup",
+    ),
+    "generated",
+  );
+  assert.equal(
+    ownerOf(
+      "/home/me/.agents/skills/humanizer/SKILL.md",
+      "/home/me/code/pi-setup",
+    ),
+    null,
+  );
+  // A sibling checkout sharing our prefix is not us.
+  assert.equal(
+    ownerOf(
+      "/home/me/code/pi-setup-old/skills/x/SKILL.md",
+      "/home/me/code/pi-setup",
+    ),
+    null,
   );
 });
