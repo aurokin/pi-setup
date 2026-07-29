@@ -5,7 +5,6 @@ import {
   ENGINEERING_POLICY_BULLETS,
   ENGINEERING_POLICY_CHILD_NOTE,
   ENGINEERING_POLICY_HEADER,
-  ENGINEERING_POLICY_OVERRIDES,
   appendEngineeringPolicy,
 } from "./engineering-policy.ts";
 
@@ -26,19 +25,17 @@ test("does not re-append when another extension moved the section", () => {
   assert.equal(appendEngineeringPolicy(reordered), reordered);
 });
 
-test("policy leads with its header, then bullets, then the override clause", () => {
+test("policy is its header, then nothing but bullets", () => {
+  // Nothing trails the bullets any more: the closing clause that told the
+  // model to override this section on conflict was removed deliberately, and
+  // a stray line reappearing at the end is the way that would come back.
   const lines = ENGINEERING_POLICY.split("\n");
   assert.equal(lines[0], ENGINEERING_POLICY_HEADER);
   assert.equal(lines[1], "");
   assert.ok(ENGINEERING_POLICY_BULLETS.length > 0);
   for (const bullet of ENGINEERING_POLICY_BULLETS)
     assert.match(bullet, /^- \S/);
-  assert.equal(lines.at(-1), ENGINEERING_POLICY_OVERRIDES);
-});
-
-test("the override clause is prose, so rules are not read as absolute", () => {
-  assert.doesNotMatch(ENGINEERING_POLICY_OVERRIDES, /^- /);
-  assert.match(ENGINEERING_POLICY_OVERRIDES, /[Oo]verride/);
+  assert.equal(lines.at(-1), ENGINEERING_POLICY_BULLETS.at(-1));
 });
 
 test("says nothing the tool schema already conveys", () => {
@@ -53,13 +50,6 @@ test("says nothing the tool schema already conveys", () => {
 test("the child note refuses an empty result", () => {
   assert.match(ENGINEERING_POLICY_CHILD_NOTE, /found nothing/);
   assert.match(ENGINEERING_POLICY_CHILD_NOTE, /name what you inspected/);
-});
-
-test("the override clause names the authorities that actually outrank us", () => {
-  // We are appended after both, so "the harness system prompt" pointed at text
-  // that recency would have let this section silently outrank.
-  assert.match(ENGINEERING_POLICY_OVERRIDES, /[Pp]roject instructions/);
-  assert.match(ENGINEERING_POLICY_OVERRIDES, /base prompt/);
 });
 
 test("the destructive-git rule holds for a child that cannot ask", () => {

@@ -58,15 +58,6 @@
 
 export const ENGINEERING_POLICY_HEADER = "## Engineering Rules";
 
-/**
- * This section is appended AFTER pi's base prompt and after `<project_context>`,
- * so precedence by recency runs the wrong way. Name the authorities explicitly
- * rather than gesturing at "the harness system prompt", which lands earlier and
- * would otherwise be silently outranked by this text.
- */
-export const ENGINEERING_POLICY_OVERRIDES =
-  "Project instructions and pi's base prompt outrank this section; override anything here that conflicts with them.";
-
 export const ENGINEERING_POLICY_BULLETS = [
   '- Match the action to the verb. Answer, explain, review, and diagnose call for investigation and a report, not edits — bare pressure like "finish it" or "don\'t stop" does not convert them, though an explicit instruction to fix what you find does. Writing your own report or output file is always in scope; if you cannot write one, return it in your reply instead.',
   "- Attempt underspecified requests, stating assumptions inline. Ask when the answer changes what you build; where no user is reachable, state the assumption and proceed.",
@@ -96,8 +87,6 @@ export const ENGINEERING_POLICY = [
   ENGINEERING_POLICY_HEADER,
   "",
   ...ENGINEERING_POLICY_BULLETS,
-  "",
-  ENGINEERING_POLICY_OVERRIDES,
 ].join("\n");
 
 /**
