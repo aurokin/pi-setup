@@ -60,19 +60,20 @@ taking from other agents.
 ## Development
 
 ```sh
-npm install                   # root and every extension workspace
-npm run check                 # typecheck
-npm test                      # unit tests — hermetic, ~25s
-npm run test:e2e              # live tests — real pi + real provider, ~90s, costs money
-npm run format                # prettier
+pnpm install                  # root and every extension workspace
+pnpm check                    # typecheck
+pnpm test                     # unit tests — hermetic, ~25s
+pnpm test:e2e                 # live tests — real pi + real provider, ~90s, costs money
+pnpm format                   # prettier
 ```
 
-`npm test` never touches the network, so a red result there is always a real
+`pnpm test` never touches the network, so a red result there is always a real
 regression. Everything that needs credentials or a running pi lives in `e2e/`,
 including the only detector for the codex compaction beta flag being withdrawn
 — worth running on a schedule rather than only on change.
 
-Most directories under `extensions/` are their own npm package, with a lockfile once they have dependencies, so the root install alone is not enough.
+Most directories under `extensions/` are their own package and a pnpm
+workspace, so one `pnpm install` at the root covers all of them.
 
 ## Tracking upstream
 

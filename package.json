@@ -1,26 +1,5 @@
 {
   "name": "pi-setup",
-  "workspaces": [
-    "extensions/agent-metadata",
-    "extensions/ask-user",
-    "extensions/background-terminals",
-    "extensions/codex-compaction",
-    "extensions/context-budget",
-    "extensions/copy-all",
-    "extensions/effort",
-    "extensions/file-search",
-    "extensions/firecrawl-search",
-    "extensions/git-info",
-    "extensions/goal",
-    "extensions/loop",
-    "extensions/model-info",
-    "extensions/session-title",
-    "extensions/sleep",
-    "extensions/subagents",
-    "extensions/summaries",
-    "extensions/system-prompt",
-    "extensions/ui-customization"
-  ],
   "private": true,
   "dependencies": {
     "@earendil-works/pi-ai": "^0.82.1",
@@ -42,10 +21,11 @@
     "check": "tsc --noEmit",
     "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
-    "test": "node --test --experimental-strip-types extensions/*/*.test.ts tools/*/*.test.ts && npm --prefix extensions/file-search test",
+    "test": "node --test --experimental-strip-types extensions/*/*.test.ts tools/*/*.test.ts && pnpm --filter file-search test",
     "prompt": "node --experimental-strip-types tools/prompt-inspector/inspect.ts",
     "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts",
     "profile:slim": "./scripts/slim-profile.sh",
     "prepare": "effect-tsgo patch"
-  }
+  },
+  "packageManager": "pnpm@11.17.0"
 }

@@ -5,12 +5,12 @@ Clone this repo somewhere of your own and install its dependencies:
 ```sh
 git clone git@github.com:aurokin/pi-setup.git ~/code/pi-setup
 cd ~/code/pi-setup
-npm install
+pnpm install
 ```
 
 One install covers everything. Most directories under `extensions/` are their
-own npm package, and each is a workspace listed in the root `package.json`, so
-`npm install` resolves them together and installs the shared dependencies once
+own package, and each is a pnpm workspace matched by `pnpm-workspace.yaml`, so
+`pnpm install` resolves them together and installs the shared dependencies once
 rather than once per extension.
 
 ## Linking it into pi
@@ -80,11 +80,11 @@ agent directory is not only config — `auth.json`, `sessions/`, and
 ## Slim profile
 
 The full setup assumes a frontier model: it registers 22 tools, several of them
-orchestration a weaker model cannot supervise. `npm run profile:slim` writes a
+orchestration a weaker model cannot supervise. `pnpm profile:slim` writes a
 second profile for locally served models:
 
 ```sh
-npm run profile:slim
+pnpm profile:slim
 PI_CODING_AGENT_DIR=~/.pi/agent-slim pi
 ```
 

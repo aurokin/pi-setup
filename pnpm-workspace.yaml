@@ -1,0 +1,9 @@
+# Each extension is its own package. Listed by glob; directories without a
+# package.json (extensions/shared, extensions/workflows) are not packages and
+# are skipped.
+packages:
+  - "extensions/*"
+allowBuilds:
+  '@google/genai': set this to true or false
+  msgpackr-extract: set this to true or false
+  protobufjs: set this to true or false

@@ -10,9 +10,9 @@ one at a time — `~/.pi/agent/skills` is a real directory — so a new
 
 - `extensions/<name>/` — one pi extension per directory, usually its own npm
   package. `index.ts` is the entry point; larger extensions keep implementation
-  in `src/` and colocate `*.test.ts` at the root. Each is an npm **workspace**,
-  listed in the root `package.json`: it declares its own dependencies, and npm
-  installs them once at the root. Add a new one to that list.
+  in `src/` and colocate `*.test.ts` at the root. Each is a pnpm **workspace**,
+  matched by the `extensions/*` glob in `pnpm-workspace.yaml`: it declares its
+  own dependencies, and pnpm installs them once at the root.
 - `extensions/shared/` and `extensions/workflows/` have no package.json at all,
   so they are not workspaces. `shared/` is cross-extension helpers, imported by
   relative path.
@@ -23,26 +23,26 @@ one at a time — `~/.pi/agent/skills` is a real directory — so a new
   `~/.pi/agent/generated-skills/`.
 - `tools/<name>/` — developer tooling for working on this repo, not loaded by
   pi. Same toolchain and conventions as extensions; `*.test.ts` runs under
-  `npm test`. `tools/prompt-inspector/` reports what the model actually
+  `pnpm test`. `tools/prompt-inspector/` reports what the model actually
   receives on a turn, and is the review surface for prompting we wrote: full
   tool schemas, the bodies of our own skills, and the subagent role prompts.
 
 ## Commands
 
 ```sh
-npm install                                 # root + every extension workspace
-npm run check                               # tsc --noEmit across the repo
-npm test                                    # node:test + file-search vitest, hermetic, ~25s
-npm run test:e2e                            # live: real pi, real provider, costs money
-npm run format                              # prettier
-npm run prompt -- --open                    # what the model receives on a turn; free
+pnpm install                                # root + every extension workspace
+pnpm check                                  # tsc --noEmit across the repo
+pnpm test                                   # node:test + file-search vitest, hermetic, ~25s
+pnpm test:e2e                               # live: real pi, real provider, costs money
+pnpm format                                 # prettier
+pnpm prompt --open                          # what the model receives on a turn; free
 ```
 
 Run `check` and `format` before finishing a change.
 
 ## Verification cadence
 
-`npm test` is hermetic — no network, no credentials — so a red result there is
+`pnpm test` is hermetic — no network, no credentials — so a red result there is
 always a real regression, and it is cheap enough to run on every change.
 
 `e2e/` is different, and not only because it costs money. Some of it watches
@@ -66,7 +66,7 @@ unit tests structurally cannot.
 The subagent backends each need their own, and each skips without it: codex and
 claude need their CLI authenticated, `subagents-droid` needs `FACTORY_API_KEY`
 and a `droid` on PATH, `subagents-cursor` needs `CURSOR_API_KEY`. So a bare
-`npm run test:e2e` silently covers less than it looks like it does — reach them
+`pnpm test:e2e` silently covers less than it looks like it does — reach them
 with the secret wrapper:
 
 ```sh
@@ -89,19 +89,28 @@ Treat those rules as unverified against any given model.
   `.ts` extensions in relative imports — that is required, not a style choice.
 - TypeScript 7, Effect v4 (beta). Effect APIs move between betas; check the
   installed version before trusting an example.
-- Add packages with an install command rather than editing `package.json` by
-  hand, and name the workspace that needs them:
-  `npm install -w extensions/<name> <pkg>`. The dependency is declared there;
-  npm decides where it physically lands.
+- pnpm, not npm. Add packages with an install command rather than editing
+  `package.json` by hand, and name the workspace that needs them:
+  `pnpm add --filter <name> <pkg>`. The dependency is declared there; pnpm
+  decides where it physically lands.
 
   This used to say to install *into* the extension directory. That gave seven
   extensions their own 47 MB copy of Effect, and node built a separate module
   graph for each at every startup: 1111 ms to start, of which 749 ms was
   extension loading, and every extension costing over 50 ms was one with its
-  own copy. Hoisting them to a single root install took startup to 723 ms
-  (extension load 749 → 379 ms) and the tree from ~3.4 GB to ~915 MB.
+  own copy. One shared install took startup to ~730 ms (extension load 749 →
+  ~385 ms) and the tree from ~3.4 GB to ~750 MB.
 
-  The per-extension install was load-bearing for a reason that is not obvious:
+  Three things about this layout are load-bearing.
+
+  `.npmrc` sets `node-linker=hoisted`, and that is not habit. Extensions are
+  loaded into pi's own process, so they must use the same `@earendil-works/*`
+  instance pi is running; pnpm's default isolated layout would have each
+  extension resolve its own copy of the SDK, which is the version skew that
+  would break them. Disk is shared either way — pnpm hardlinks from its global
+  store. This is also why no extension declares the pi SDK: exactly one copy,
+  at the root, is the point.
+
   `~/.pi/agent/extensions` is a symlink to this checkout, and pi loads an
   extension by that path without resolving it, so node's module walk starts in
   `~/.pi/agent/` and never reaches here. A `~/.pi/agent/node_modules` symlink
@@ -110,9 +119,9 @@ Treat those rules as unverified against any given model.
   without them. `--list-models` does not surface those failures; run a real
   turn to check.
 
-  One consequence to know about: `effect-tsgo patch` rewrites the TypeScript
-  binary, and with one hoisted binary it must run once, from the root. It is a
-  root `prepare` script — do not add it back to a workspace.
+  `effect-tsgo patch` rewrites the TypeScript binary, and with one shared
+  binary it must run once, from the root. It is a root `prepare` script — do
+  not add it back to a workspace, where several would race on the same file.
 
 ## Style
 
