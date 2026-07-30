@@ -12,7 +12,9 @@
  * network. `liveBinaryEnv` is the real implementation.
  */
 
-import { NodeHttpClient, NodeServices } from "@effect/platform-node";
+// Subpaths, not the barrel — see the note in this extension's index.ts.
+import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";

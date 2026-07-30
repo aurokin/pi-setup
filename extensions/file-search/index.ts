@@ -9,7 +9,14 @@
  * before executing, and report a clear error if it failed.
  */
 
-import { NodeServices } from "@effect/platform-node";
+// Subpath rather than the package barrel: the barrel re-exports 25 modules and
+// costs ~135ms to load, against ~62ms for this one. Static, not deferred, so a
+// resolution failure is still loud at startup. Namespace form is required: the
+// barrel wraps each module as a namespace, the subpath *is* the module, so a
+// named import would be undefined at runtime. git-info imports the same way,
+// and it has to: they share the graph, so whichever loads first pays, and
+// fixing only one of them saves nothing.
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import type {
   AgentToolResult,
   ExtensionAPI,

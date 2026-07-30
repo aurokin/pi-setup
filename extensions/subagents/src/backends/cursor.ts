@@ -44,8 +44,12 @@ import type {
   SDKToolUseMessage,
   TokenUsage,
 } from "@cursor/sdk";
-import { Agent } from "@cursor/sdk";
-import { Cursor } from "@cursor/sdk";
+// `Agent` and `Cursor` are imported dynamically at spawn time rather than here.
+// The SDK's module graph is loaded in every session, and almost none of them
+// spawn a cursor child. Both uses already sit inside `Effect.tryPromise`, so a
+// missing or broken SDK still surfaces as a SpawnError — the catalog lookup
+// additionally falls back to dropping the effort, which is its existing
+// behaviour for a slow or failing catalog.
 import type { Cause, Scope } from "effect";
 import { Effect, Queue, Stream } from "effect";
 import type { SubagentBackend, SubagentSession } from "../backend.ts";
@@ -412,10 +416,12 @@ const makeCursorSession = (
     // explicit effort needs the catalog, and a slow or failing catalog must
     // not hold up the spawn — without it the effort is dropped, not guessed.
     const catalog = task.reasoningEffort
-      ? yield* Effect.tryPromise(() =>
+      ? yield* Effect.tryPromise(async () =>
           withTimeout(
             // Same explicit key as the agent below, for the same reason.
-            Cursor.models.list({ apiKey: process.env.CURSOR_API_KEY }),
+            (await import("@cursor/sdk")).Cursor.models.list({
+              apiKey: process.env.CURSOR_API_KEY,
+            }),
             MODEL_LIST_TIMEOUT_MS,
           ),
         ).pipe(Effect.orElseSucceed(() => undefined))
@@ -427,8 +433,8 @@ const makeCursorSession = (
     );
 
     const agent = yield* Effect.tryPromise({
-      try: () =>
-        Agent.create({
+      try: async () =>
+        (await import("@cursor/sdk")).Agent.create({
           // Passed explicitly, never left to the SDK's fallback. With the key
           // only in the environment the SDK authenticates a run as something
           // else — verified: `Agent.create({model, local})` with a valid

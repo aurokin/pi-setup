@@ -1,4 +1,7 @@
-import { NodeServices } from "@effect/platform-node";
+// Subpath, not the barrel: loading 25 re-exported modules to use one costs
+// ~70ms of startup. Must stay in step with file-search, which imports the same
+// way — the two share this graph and only the first loader pays for it.
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Cause, Exit, Layer, ManagedRuntime, type Effect } from "effect";
 import { CommandRunner, CommandRunnerLive } from "./process.ts";
 

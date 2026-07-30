@@ -13,12 +13,17 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-  query,
-  type SDKAssistantMessage,
-  type SDKMessage,
-  type SDKResultMessage,
-  type SDKUserMessage,
+// Types only. `query` is the one value this module needs, and it is imported
+// dynamically at spawn time instead: the SDK's module graph costs real startup
+// time in every session, including the great majority that never spawn a Claude
+// child. The trade is that a broken or missing SDK now surfaces on first spawn
+// rather than at extension load, which is why the import below is wrapped as a
+// SpawnError — an unavailable backend must read as a failed spawn, not a defect.
+import type {
+  SDKAssistantMessage,
+  SDKMessage,
+  SDKResultMessage,
+  SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { Cause, Scope } from "effect";
 import { Effect, Queue, Stream } from "effect";
@@ -325,9 +330,9 @@ const makeClaudeSession = (
       ? THINKING_BUDGETS[task.reasoningEffort]
       : undefined;
     const claudeBinary = resolveClaudeBinary();
-    const nativeQuery = yield* Effect.try({
-      try: () =>
-        query({
+    const nativeQuery = yield* Effect.tryPromise({
+      try: async () =>
+        (await import("@anthropic-ai/claude-agent-sdk")).query({
           prompt: input,
           options: {
             cwd: task.cwd,

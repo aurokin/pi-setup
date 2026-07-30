@@ -13,7 +13,11 @@ import {
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import { Cause, Data, Effect, Exit } from "effect";
-import { Firecrawl, type CrawlJob, type CrawlOptions } from "firecrawl";
+// Types only. The client is constructed through a dynamic import in
+// `createClient` below, so the SDK's module graph is not loaded in the many
+// sessions that never call a firecrawl tool. Failures stay on the existing
+// path: createClient already returns FirecrawlError, which the tools surface.
+import type { CrawlJob, CrawlOptions, Firecrawl } from "firecrawl";
 import { Type } from "typebox";
 import {
   CRAWL_PARAMETER_DESCRIPTIONS,
@@ -80,8 +84,8 @@ function createClient() {
     );
   }
 
-  return Effect.try({
-    try: () => new Firecrawl({ apiKey }),
+  return Effect.tryPromise({
+    try: async () => new (await import("firecrawl")).Firecrawl({ apiKey }),
     catch: (cause) =>
       new FirecrawlError({ message: errorMessage(cause), cause }),
   });

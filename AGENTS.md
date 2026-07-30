@@ -98,18 +98,25 @@ Treat those rules as unverified against any given model.
   extensions their own 47 MB copy of Effect, and node built a separate module
   graph for each at every startup: 1111 ms to start, of which 749 ms was
   extension loading, and every extension costing over 50 ms was one with its
-  own copy. One shared install took startup to ~730 ms (extension load 749 →
-  ~385 ms) and the tree from ~3.4 GB to ~750 MB.
+  own copy. One shared install took the tree from ~3.4 GB to ~750 MB and was
+  the first of three rounds; startup is now ~519 ms with ~188 ms of extension
+  load. The other two rounds are recorded in `docs/startup.md`, including what
+  was measured and rejected, because the remaining cost is pi's own and there
+  is nothing left here worth chasing.
 
-  Three things about this layout are load-bearing.
+  Two things about this layout are load-bearing.
 
-  `.npmrc` sets `node-linker=hoisted`, and that is not habit. Extensions are
-  loaded into pi's own process, so they must use the same `@earendil-works/*`
-  instance pi is running; pnpm's default isolated layout would have each
-  extension resolve its own copy of the SDK, which is the version skew that
-  would break them. Disk is shared either way — pnpm hardlinks from its global
-  store. This is also why no extension declares the pi SDK: exactly one copy,
-  at the root, is the point.
+  No extension declares the pi SDK, and none should. Extensions are loaded into
+  pi's own process, so they must use the same `@earendil-works/*` instance pi
+  is running — exactly one copy, from the root install, is the point.
+
+  Shared dependencies are shared in fact, not merely on disk. pnpm's layout
+  here is isolated (`node_modules/.modules.yaml` is the source of truth; an
+  earlier `node-linker=hoisted` in `.npmrc` was silently ignored and the claims
+  written around it were wrong). That is fine: the seven extensions declaring
+  `effect` all symlink into the same `.pnpm/effect@<version>`, and node
+  resolves symlinks before caching, so one instance is parsed once. Verify with
+  `.modules.yaml` rather than with `.npmrc`.
 
   `~/.pi/agent/extensions` is a symlink to this checkout, and pi loads an
   extension by that path without resolving it, so node's module walk starts in

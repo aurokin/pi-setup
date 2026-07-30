@@ -77,6 +77,22 @@ This is symlinks rather than cloning straight into `~/.pi/agent` because the
 agent directory is not only config — `auth.json`, `sessions/`, and
 `models-store.json` live there too, and none of them belong in a public repo.
 
+## Faster startup (optional)
+
+Node can cache compiled bytecode between runs instead of recompiling every
+module on every start. It is not pi configuration and it lives outside this
+checkout, so it is easy to forget it exists:
+
+```sh
+export NODE_COMPILE_CACHE="$HOME/.cache/node-compile-cache"
+```
+
+Measured here: 569 ms to 528 ms. The first run after a node or pi version
+change pays the compile cost once to repopulate. An unwritable or stale cache
+is ignored rather than fatal, so the worst case is a slow start. It reaches
+roughly 12 MB per version and is never cleaned up on its own — delete the
+directory whenever you want it back.
+
 ## Slim profile
 
 The full setup assumes a frontier model: it registers 22 tools, several of them
