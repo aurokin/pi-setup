@@ -9,11 +9,13 @@ one at a time — `~/.pi/agent/skills` is a real directory — so a new
 ## Layout
 
 - `extensions/<name>/` — one pi extension per directory, usually its own npm
-  package, with a lockfile once it has dependencies and none before that.
-  `index.ts` is the entry point; larger extensions keep implementation in `src/`
-  and colocate `*.test.ts` at the root.
-- `extensions/shared/` and `extensions/workflows/` have no package.json at all.
-  `shared/` is cross-extension helpers, imported by relative path.
+  package. `index.ts` is the entry point; larger extensions keep implementation
+  in `src/` and colocate `*.test.ts` at the root. Each is an npm **workspace**,
+  listed in the root `package.json`: it declares its own dependencies, and npm
+  installs them once at the root. Add a new one to that list.
+- `extensions/shared/` and `extensions/workflows/` have no package.json at all,
+  so they are not workspaces. `shared/` is cross-extension helpers, imported by
+  relative path.
 - `skills/<name>/SKILL.md` — model-facing docs loaded on demand.
 - An extension may also generate a skill: it renders one at startup and returns
   the path from `resources_discover`. `extensions/subagents/skill/` is the
@@ -28,7 +30,7 @@ one at a time — `~/.pi/agent/skills` is a real directory — so a new
 ## Commands
 
 ```sh
-npm install && npm run install:extensions   # both are required
+npm install                                 # root + every extension workspace
 npm run check                               # tsc --noEmit across the repo
 npm test                                    # node:test + file-search vitest, hermetic, ~25s
 npm run test:e2e                            # live: real pi, real provider, costs money
@@ -87,8 +89,30 @@ Treat those rules as unverified against any given model.
   `.ts` extensions in relative imports — that is required, not a style choice.
 - TypeScript 7, Effect v4 (beta). Effect APIs move between betas; check the
   installed version before trusting an example.
-- Add packages with an install command rather than editing `package.json` by hand,
-  and install into the extension directory that needs them, not the root.
+- Add packages with an install command rather than editing `package.json` by
+  hand, and name the workspace that needs them:
+  `npm install -w extensions/<name> <pkg>`. The dependency is declared there;
+  npm decides where it physically lands.
+
+  This used to say to install *into* the extension directory. That gave seven
+  extensions their own 47 MB copy of Effect, and node built a separate module
+  graph for each at every startup: 1111 ms to start, of which 749 ms was
+  extension loading, and every extension costing over 50 ms was one with its
+  own copy. Hoisting them to a single root install took startup to 723 ms
+  (extension load 749 → 379 ms) and the tree from ~3.4 GB to ~915 MB.
+
+  The per-extension install was load-bearing for a reason that is not obvious:
+  `~/.pi/agent/extensions` is a symlink to this checkout, and pi loads an
+  extension by that path without resolving it, so node's module walk starts in
+  `~/.pi/agent/` and never reaches here. A `~/.pi/agent/node_modules` symlink
+  supplies the missing step — SETUP.md has it. Do not drop it: without it,
+  every extension importing `effect` fails to load and pi continues silently
+  without them. `--list-models` does not surface those failures; run a real
+  turn to check.
+
+  One consequence to know about: `effect-tsgo patch` rewrites the TypeScript
+  binary, and with one hoisted binary it must run once, from the root. It is a
+  root `prepare` script — do not add it back to a workspace.
 
 ## Style
 

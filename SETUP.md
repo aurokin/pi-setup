@@ -6,14 +6,12 @@ Clone this repo somewhere of your own and install its dependencies:
 git clone git@github.com:aurokin/pi-setup.git ~/code/pi-setup
 cd ~/code/pi-setup
 npm install
-npm run install:extensions
 ```
 
-Both installs are required. Most directories under `extensions/` are their own
-npm package, with a lockfile once they have dependencies, so the root
-`npm install` does not cover them —
-skipping the second command leaves `effect` and the Claude Agent SDK missing and
-`npm run check` fails.
+One install covers everything. Most directories under `extensions/` are their
+own npm package, and each is a workspace listed in the root `package.json`, so
+`npm install` resolves them together and installs the shared dependencies once
+rather than once per extension.
 
 ## Linking it into pi
 
@@ -21,9 +19,20 @@ Pi looks for `extensions/`, `themes/`, and `skills/` under `~/.pi/agent`, so
 each is pointed at this checkout:
 
 ```sh
-ln -s ~/code/pi-setup/extensions ~/.pi/agent/extensions
-ln -s ~/code/pi-setup/themes     ~/.pi/agent/themes
+ln -s ~/code/pi-setup/extensions   ~/.pi/agent/extensions
+ln -s ~/code/pi-setup/themes       ~/.pi/agent/themes
+ln -s ~/code/pi-setup/node_modules ~/.pi/agent/node_modules
 ```
+
+The third link is not optional, and the reason is worth knowing before you
+change it. Pi loads an extension by the path it was found at — through the
+symlink, without resolving it to the real one — so node looks for that
+extension's imports by walking up from `~/.pi/agent/extensions/<name>/` and
+never reaches this checkout. With dependencies installed once at the repo root,
+`~/.pi/agent/node_modules` is the step in that walk that finds them.
+
+Without it, every extension importing `effect` or the Claude Agent SDK fails to
+load with `Cannot find module`, and pi carries on without them.
 
 Skills are linked one at a time, because `~/.pi/agent/skills` is shared — it
 also holds skills that came from elsewhere, so it cannot be a single symlink:

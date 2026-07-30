@@ -60,8 +60,7 @@ taking from other agents.
 ## Development
 
 ```sh
-npm install                   # root dependencies
-npm run install:extensions    # per-extension dependencies (required)
+npm install                   # root and every extension workspace
 npm run check                 # typecheck
 npm test                      # unit tests — hermetic, ~25s
 npm run test:e2e              # live tests — real pi + real provider, ~90s, costs money

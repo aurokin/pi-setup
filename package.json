@@ -1,5 +1,26 @@
 {
   "name": "pi-setup",
+  "workspaces": [
+    "extensions/agent-metadata",
+    "extensions/ask-user",
+    "extensions/background-terminals",
+    "extensions/codex-compaction",
+    "extensions/context-budget",
+    "extensions/copy-all",
+    "extensions/effort",
+    "extensions/file-search",
+    "extensions/firecrawl-search",
+    "extensions/git-info",
+    "extensions/goal",
+    "extensions/loop",
+    "extensions/model-info",
+    "extensions/session-title",
+    "extensions/sleep",
+    "extensions/subagents",
+    "extensions/summaries",
+    "extensions/system-prompt",
+    "extensions/ui-customization"
+  ],
   "private": true,
   "dependencies": {
     "@earendil-works/pi-ai": "^0.82.1",
@@ -10,6 +31,7 @@
     "typebox": "^1.3.6"
   },
   "devDependencies": {
+    "@effect/tsgo": "^0.24.2",
     "@types/node": "^26.1.1",
     "effect": "^4.0.0-beta.101",
     "prettier": "^3.9.5",
@@ -18,12 +40,12 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "install:extensions": "for d in extensions/*/; do if [ -f \"$d/package.json\" ]; then npm install --prefix \"$d\" || exit 1; fi; done",
     "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
     "test": "node --test --experimental-strip-types extensions/*/*.test.ts tools/*/*.test.ts && npm --prefix extensions/file-search test",
     "prompt": "node --experimental-strip-types tools/prompt-inspector/inspect.ts",
     "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts",
-    "profile:slim": "./scripts/slim-profile.sh"
+    "profile:slim": "./scripts/slim-profile.sh",
+    "prepare": "effect-tsgo patch"
   }
 }
