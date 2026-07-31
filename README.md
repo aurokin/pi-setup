@@ -33,7 +33,7 @@ Ours:
 - `/goal`, an objective restated to the model every turn, which only you can
   change ([design](extensions/goal/docs/design.md))
 - `/effort`, a menu for the thinking level, offering only what the current model
-  supports — `ctrl+t` cycles the same setting without one
+  supports — `shift+tab` cycles the same setting without one
 - `/context-budget`, which attributes this session's context window to the
   prompt, tool schemas, context files, and history that are filling it
 - agent metadata published to tmux (`@agent.*`), so tools reading the pane get
