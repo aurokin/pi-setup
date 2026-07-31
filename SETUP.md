@@ -19,13 +19,14 @@ Pi looks for `extensions/`, `themes/`, and `skills/` under `~/.pi/agent`, so
 each is pointed at this checkout:
 
 ```sh
-ln -s ~/code/pi-setup/extensions   ~/.pi/agent/extensions
-ln -s ~/code/pi-setup/themes       ~/.pi/agent/themes
-ln -s ~/code/pi-setup/node_modules ~/.pi/agent/node_modules
+ln -s ~/code/pi-setup/extensions       ~/.pi/agent/extensions
+ln -s ~/code/pi-setup/themes           ~/.pi/agent/themes
+ln -s ~/code/pi-setup/node_modules     ~/.pi/agent/node_modules
+ln -s ~/code/pi-setup/keybindings.json ~/.pi/agent/keybindings.json
 ```
 
-The third link is not optional, and the reason is worth knowing before you
-change it. Pi loads an extension by the path it was found at — through the
+The `node_modules` link is not optional, and the reason is worth knowing before
+you change it. Pi loads an extension by the path it was found at — through the
 symlink, without resolving it to the real one — so node looks for that
 extension's imports by walking up from `~/.pi/agent/extensions/<name>/` and
 never reaches this checkout. With dependencies installed once at the repo root,
@@ -33,6 +34,13 @@ never reaches this checkout. With dependencies installed once at the repo root,
 
 Without it, every extension importing `effect` or the Claude Agent SDK fails to
 load with `Cannot find module`, and pi carries on without them.
+
+`keybindings.json` overrides only what it names; everything else keeps pi's
+default. It currently swaps two bindings: `ctrl+t` cycles the thinking level
+(pi's default is `shift+tab`), and `shift+tab` toggles the display of thinking
+blocks (pi's default is `ctrl+t`). A straight swap, so nothing is lost. `/effort`
+is the same setting on a menu, and shows only the levels the current model
+supports.
 
 Skills are linked one at a time, because `~/.pi/agent/skills` is shared — it
 also holds skills that came from elsewhere, so it cannot be a single symlink:
