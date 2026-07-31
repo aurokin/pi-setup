@@ -23,6 +23,7 @@
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"e2e/**/*.ts\" \"tools/**/*.ts\" \"*.json\"",
     "test": "node --test --experimental-strip-types extensions/*/*.test.ts tools/*/*.test.ts && pnpm --filter file-search test",
     "prompt": "node --experimental-strip-types tools/prompt-inspector/inspect.ts",
+    "render:policy": "node --experimental-strip-types --input-type=module -e \"const m = await import('./extensions/shared/engineering-policy.ts'); const fs = await import('node:fs'); fs.writeFileSync('extensions/shared/engineering-policy.md', m.ENGINEERING_POLICY + '\\n');\"",
     "test:e2e": "node --test --experimental-strip-types e2e/*.test.ts",
     "profile:slim": "./scripts/slim-profile.sh",
     "prepare": "effect-tsgo patch"
