@@ -5,7 +5,8 @@ Clone this repo somewhere of your own and install its dependencies:
 ```sh
 git clone git@github.com:aurokin/pi-setup.git ~/code/pi-setup
 cd ~/code/pi-setup
-pnpm install
+pnpm install --frozen-lockfile
+./scripts/setup-user-links.sh
 ```
 
 One install covers everything. Most directories under `extensions/` are their
@@ -15,45 +16,39 @@ rather than once per extension.
 
 ## Linking it into pi
 
-Pi looks for `extensions/`, `themes/`, and `skills/` under `~/.pi/agent`, so
-each is pointed at this checkout:
+Pi looks for `extensions/`, `themes/`, and `skills/` under `~/.pi/agent`.
+`scripts/setup-user-links.sh` points the resources owned by this checkout there:
+
+- `extensions/`
+- `themes/`
+- the root `node_modules/`
+- the `background-terminals` and `linearis` skills
+
+The script is idempotent and refuses to replace an existing path. Use its
+read-only mode to diagnose a host:
 
 ```sh
-ln -s ~/code/pi-setup/extensions   ~/.pi/agent/extensions
-ln -s ~/code/pi-setup/themes       ~/.pi/agent/themes
-ln -s ~/code/pi-setup/node_modules ~/.pi/agent/node_modules
+./scripts/setup-user-links.sh --check
 ```
 
-The third link is not optional, and the reason is worth knowing before you
-change it. Pi loads an extension by the path it was found at — through the
-symlink, without resolving it to the real one — so node looks for that
-extension's imports by walking up from `~/.pi/agent/extensions/<name>/` and
-never reaches this checkout. With dependencies installed once at the repo root,
-`~/.pi/agent/node_modules` is the step in that walk that finds them.
+The `node_modules` link is not optional. Pi loads an extension through the
+symlink path without resolving it to the checkout first, so Node searches up
+from `~/.pi/agent/extensions/<name>/`. The link at `~/.pi/agent/node_modules`
+is how those extensions reach the dependencies installed once at the repo
+root. Without it, every extension importing `effect` or the Claude Agent SDK
+fails to load with `Cannot find module`, and Pi carries on without them.
 
-Without it, every extension importing `effect` or the Claude Agent SDK fails to
-load with `Cannot find module`, and pi carries on without them.
-
-Skills are linked one at a time, because `~/.pi/agent/skills` is shared — it
-also holds skills that came from elsewhere, so it cannot be a single symlink:
-
-```sh
-mkdir -p ~/.pi/agent/skills
-ln -s ~/code/pi-setup/skills/background-terminals ~/.pi/agent/skills/
-ln -s ~/code/pi-setup/skills/linearis             ~/.pi/agent/skills/
-```
+Skills remain individual links because `~/.pi/agent/skills` is shared with
+skills installed from other sources.
 
 Nothing in `~/.agents/skills` needs linking: pi reads that directory on its own,
 alongside `~/.pi/agent/skills`.
 
 **Do not link a `subagents` skill.** It no longer exists as a static file: the
 extension renders it from the harnesses `subagents.json` actually offers and
-hands pi the path at startup, so a linked copy would only shadow it with a stale
-list. If you linked one before, remove it:
-
-```sh
-rm -f ~/.pi/agent/skills/subagents
-```
+hands Pi the path at startup, so a linked copy would only shadow it with a stale
+list. The setup script reports an existing static copy but never removes it;
+review that path before deleting anything.
 
 `skills/linearis` is a modified copy of
 [linearis-oss/linearis](https://github.com/linearis-oss/linearis)'

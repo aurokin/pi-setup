@@ -23,10 +23,10 @@ Reasons:
 
 ## Sources compared
 
-- Claude custom addition: `~/.dotfiles-private/claude/.claude/CLAUDE.md` — a
-  concise behavioral layer. Think before coding, prefer simplicity, make surgical
-  edits, verify against explicit success criteria. This is the closest model for
-  what we want and the direct ancestor of the current bullets.
+- An earlier Claude instruction layer: concise behavioral guidance to think
+  before coding, prefer simplicity, make surgical edits, and verify against
+  explicit success criteria. This is the closest model for what we want and the
+  direct ancestor of the current bullets.
 - Codex base prompt:
   `~/code/upstream/codex/codex-rs/protocol/src/prompts/base_instructions/default.md`
   — a full operating contract: terminal-agent role, progress updates, planning,
