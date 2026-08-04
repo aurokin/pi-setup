@@ -1,5 +1,10 @@
 # Building a pi extension on the Effect v4 setup
 
+> **Historical API snapshot.** The examples and install commands below target the
+> versions named in this document and predate the repository's pnpm workspace layout.
+> For current work, inspect the installed Effect version, use the root commands in
+> `AGENTS.md`, and treat existing source as the API reference.
+>
 > Practical, migration-oriented companion to [`effect-v4-notes.md`](./effect-v4-notes.md).
 > That file is the Effect API cheat-sheet (v3→v4 renames, child processes, concurrency);
 > **this** file is how to stand up _one pi extension_ on the same toolchain and where to

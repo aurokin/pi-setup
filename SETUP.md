@@ -90,21 +90,19 @@ directory whenever you want it back.
 
 ## Slim profile
 
-The full setup assumes a frontier model: it registers 22 tools, several of them
-orchestration a weaker model cannot supervise. `pnpm profile:slim` writes a
-second profile for locally served models:
+The full setup assumes a model capable of supervising orchestration tools.
+`pnpm profile:slim` writes a smaller profile for locally served models:
 
 ```sh
 pnpm profile:slim
 PI_CODING_AGENT_DIR=~/.pi/agent-slim pi
 ```
 
-It loads seven extensions rather than all of them — the engineering rules, the
-`fd`/`rg` tools, `ask_user`, `goal`, and the three that render the theme — and
-no skills at all, since skill descriptions cost context on every turn. That
-comes to 9 tools against the full profile's 22. Workflows, subagents,
-background terminals, sleep, loop, firecrawl, and codex compaction are all left
-out; `scripts/slim-profile.sh` says why beside each one.
+It loads only the engineering rules, file search, `ask_user`, `goal`, and the
+extensions that render the theme. It loads no skills because skill descriptions
+cost context on every turn. Workflows, subagents, background terminals, sleep,
+loop, Firecrawl, and codex compaction are omitted; `scripts/slim-profile.sh` is
+the source of truth for the current list and the reason for each exclusion.
 
 The profile is one `settings.json` rather than a directory of symlinks, because
 an agent directory with no `extensions/` of its own discovers nothing — so the
@@ -126,7 +124,8 @@ cp .env.example ~/.pi/agent/.env
 
 Replace the placeholder in `~/.pi/agent/.env` with your API key.
 
-NOTE: if you are an agent, at this step ask the user if they want to use firecrawl, if they do give them the instructions, if not remove the firecrawl extension in their pi setup
+If Firecrawl is not wanted, disable its extension in pi settings instead of
+adding the credential.
 
 ## fd and rg tools
 

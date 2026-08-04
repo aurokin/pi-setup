@@ -1,8 +1,8 @@
 # Startup cost
 
-Startup went from **1111 ms to ~519 ms** over three rounds. This records what
-was measured, what was rejected, and why the effort stopped — so nobody
-re-derives it, and so the rejected ideas stay rejected for their actual reasons.
+Startup went from **1111 ms to about 519 ms** over three rounds. The figures
+below are a point-in-time measurement, not a performance budget. The decisions
+and rejected alternatives remain relevant when changing the dependency layout.
 
 ## Where it stands
 
@@ -17,6 +17,22 @@ Measure with `pi --offline --list-models`, and the floor by adding
 timings on this machine drift ±50 ms between sessions, so **any comparison must
 interleave the two variants in one run** rather than compare against a number
 written down earlier. Every figure here came from an interleaved A/B.
+
+## Current dependency constraints
+
+Most extensions are pnpm workspaces and declare their own dependencies, but pnpm
+resolves them through one root install. Shared dependencies must also resolve to
+the same physical package. Check `node_modules/.modules.yaml`; `.npmrc` does not
+prove the active linker layout.
+
+Extensions do not declare the pi SDK. They run inside pi and must use the same
+`@earendil-works/*` instances as the host process. The
+`~/.pi/agent/node_modules` link is load-bearing because pi starts module
+resolution from the symlinked extension path. `SETUP.md` owns the link setup.
+
+`effect-tsgo patch` modifies the shared TypeScript binary. It runs once from the
+root `prepare` script and must not be added to individual workspaces, where
+several installs could patch the same file concurrently.
 
 ## What was done
 
@@ -83,5 +99,5 @@ the barrel wraps each module in a namespace and the subpath *is* the module.
 
 Below roughly 500 ms the remaining cost is structural: the shared Effect graph
 needed at extension registration, and pi's own module graph. The next 300 ms is
-in pi upstream. A pi release that bundles its dist or lazy-loads `jiti` would
-move this more than anything left in this repo.
+in pi upstream. A pi release that bundles its distribution or lazy-loads `jiti`
+would move this more than anything left in this repo.

@@ -3,8 +3,8 @@
 What the model actually receives when you say "Hello" to pi, as one HTML page.
 
 ```sh
-npm run prompt              # writes ./prompt-report.html
-npm run prompt -- --open    # and opens it
+pnpm prompt                 # writes ./prompt-report.html
+pnpm prompt -- --open        # and opens it
 node --experimental-strip-types tools/prompt-inspector/inspect.ts "review this" --out=/tmp/r.html
 ```
 
@@ -45,10 +45,11 @@ that way:
   Claude Code or Codex child gets; a pi child inherits them from the
   `system-prompt` extension instead and sees them once, not twice.
 
-## What it showed the first time it ran
+## Initial baseline
 
-46 KB before the conversation starts: 24.2 KB of instructions and 21.2 KB of
-tool schemas across 22 tools.
+The first captured setup used 46 KB before the conversation started: 24.2 KB of
+instructions and 21.2 KB of tool schemas across 22 tools. These figures are a
+historical baseline; run the inspector for the current configuration.
 
 | | |
 | --- | --- |

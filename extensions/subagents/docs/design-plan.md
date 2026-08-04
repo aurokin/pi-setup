@@ -1,13 +1,17 @@
-# subagents — Design Plan
+# subagents design plan
+
+> **Historical reference.** This is the original v1 plan, not current architecture or
+> setup guidance. Use `src/`, its tests, and `extensions/subagents/skill/` for the shipped
+> backend and tool contracts. Version counts, paths, commands, and acceptance checklists
+> below are preserved only as implementation history.
 
 A pi extension that fires off background subagents from a parent pi session, where each
 subagent can be powered by one of three backends — **pi** (in-process SDK session),
 **Claude Code** (`@anthropic-ai/claude-agent-sdk`), or **Codex** (`codex app-server`) —
 unified behind a single Effect v4 service interface.
 
-> **Status:** this document describes the original v1 plan (stubbed backends). All
-> three backends are now REAL implementations — see `src/backends/{pi,claude,codex}.ts`.
-> The stub machinery survives in `src/backends/stub.ts` for the manager test registry.
+> **Status:** the planned stubbed system shipped and later evolved. The stub machinery
+> remains in `src/backends/stub.ts` for tests; the backend catalog in source is current.
 
 **Scope of the first version:** interface design + stubbed backend internals + the v1 UI
 carried over. No real Claude/Codex process integration yet; the pi backend may also stay

@@ -1,5 +1,9 @@
-# Effect v4 — Practical Notes for the Subagents Extension
+# Effect v4 practical notes for the subagents extension
 
+> **Historical API snapshot.** These notes are useful for understanding the migration,
+> but Effect beta APIs and the repository's package layout have moved since they were
+> verified. Check the installed package and current source before copying an example.
+>
 > **Building a new pi extension on this stack?** Start with the migration-oriented
 > [`effect-v4-extension-guide.md`](./effect-v4-extension-guide.md) (toolchain setup, the
 > `ManagedRuntime` + `runTool` boundary, when *not* to use Effect, per-extension recipes).

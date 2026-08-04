@@ -1,38 +1,10 @@
 # Unbuilt
 
-Design notes for things this setup does not have yet, salvaged from the retired
-`pi-agent-runtime` repo. Each entry is here because the thinking still applies —
-the parts that were superseded by shipped extensions were dropped rather than
-carried, and entries get deleted as they ship rather than annotated as done.
+Design notes for deferred work and experiments that did not justify shipping.
+Delete an entry when its remaining work ships; current feature design belongs
+beside the implementation.
 
-Shipped since this file was written: persisted goals, as `extensions/goal`. It
-kept the part worth copying — the model may only report `complete` or `blocked`,
-while set, pause, resume, and clear stay the user's — and dropped the budget and
-token accounting, which had no consumer here.
-
-Also shipped: `/context-budget`, as `extensions/context-budget`. This file said
-a Claude-style breakdown needed data pi does not expose; most of it turned out
-to be exposed after all. `getSystemPrompt()` plus the section splitter in
-`extensions/shared/prompt-sections.ts` gives tokens per prompt section;
-`getAllTools()` carries each schema with a `sourceInfo` naming the extension
-that registered it; `getSystemPromptOptions()` returns context files and skills
-as structured data. Three gaps are real and remain:
-
-- **Tokens after pi's pre-provider transforms.** The wire payload would be
-  exact, and `before_provider_request` carries it — but that event never fires
-  for `openai-codex`, measured, so anything depending on it is blank on this
-  setup's own default model.
-- **Compaction state beyond total usage.** No last boundary, summary tokens, or
-  kept-recent tokens. Even the reserve is unexposed: the extension reads
-  `settings.json` and falls back to pi's 16384, labelled so a drifted default
-  shows up as a wrong label rather than a wrong number.
-- **A real tokenizer.** Still `chars / 4`, so the report ranks contributors and
-  says which single figure is the provider's own count.
-
-One caveat found the hard way: before the first turn, `getSystemPrompt()` has
-not been through `before_agent_start`, so everything extensions append to it is
-missing — 3.2 KB of engineering policy here, 13% of the prompt. The command says
-so rather than reporting the smaller number as fact.
+## Excluded legacy scope
 
 Two things stayed behind deliberately. The managed-runtime sandbox work
 (Bubblewrap namespaces, credential leasing, ACL-level write evidence) was
@@ -84,7 +56,7 @@ References that are public: `~/code/upstream/codex/codex-rs/ext/goal/`,
 **Behavioral tests for the engineering policy.** Attempted and withdrawn, but
 the measurement is worth keeping.
 
-The policy is prompt text, so `npm test` can only prove it is well-formed and
+The policy is prompt text, so `pnpm test` can only prove it is well-formed and
 appended once. A live e2e case was built for the bullet with the most leverage —
 "anything you did not establish yourself gets the same check before you build on
 it or pass it on" — by planting a false but checkable claim about a real file

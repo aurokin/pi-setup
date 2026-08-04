@@ -139,6 +139,62 @@ test("child denylist keeps extension and workflow structured tools available", a
   });
 });
 
+test("an explicit child allowlist also filters extension tools", async () => {
+  await withTempDir(async (directory) => {
+    const settingsManager = SettingsManager.inMemory(undefined, {
+      projectTrusted: false,
+    });
+    const inlineLoader = new DefaultResourceLoader({
+      cwd: directory,
+      agentDir: path.join(directory, "inline-agent"),
+      settingsManager,
+      extensionFactories: [
+        (pi) => {
+          for (const name of [
+            "allowed_extension_tool",
+            "mutating_extension_tool",
+          ]) {
+            pi.registerTool({
+              name,
+              label: name,
+              description: name,
+              parameters: Type.Object({}),
+              async execute() {
+                return {
+                  content: [{ type: "text", text: "ok" }],
+                  details: {},
+                };
+              },
+            });
+          }
+        },
+      ],
+    });
+    await inlineLoader.reload();
+
+    const { session } = await createAgentSession({
+      cwd: directory,
+      agentDir: path.join(directory, "inline-agent"),
+      resourceLoader: inlineLoader,
+      settingsManager,
+      sessionManager: SessionManager.inMemory(directory),
+      tools: ["read", "allowed_extension_tool"],
+    });
+    await bindChildSessionExtensions(session);
+
+    const allTools = new Set(session.getAllTools().map((tool) => tool.name));
+    const activeTools = new Set(session.getActiveToolNames());
+    for (const tools of [allTools, activeTools]) {
+      assert.equal(tools.has("read"), true);
+      assert.equal(tools.has("allowed_extension_tool"), true);
+      assert.equal(tools.has("mutating_extension_tool"), false);
+      assert.equal(tools.has("bash"), false);
+    }
+
+    await shutdownAndDisposeChildSession(session);
+  });
+});
+
 test("resource loading gates project extensions but retains global extensions", async () => {
   await withTempDir(async (directory) => {
     const cwd = path.join(directory, "project");
@@ -184,6 +240,14 @@ test("resource loading gates project extensions but retains global extensions", 
       .extensions.flatMap((extension) => [...extension.tools.keys()]);
     assert.equal(trustedTools.includes("global_fixture"), true);
     assert.equal(trustedTools.includes("project_fixture"), true);
+
+    const isolated = await createChildResources({
+      cwd,
+      agentDir,
+      projectTrusted: true,
+      noExtensions: true,
+    });
+    assert.equal(isolated.loader.getExtensions().extensions.length, 0);
   });
 });
 

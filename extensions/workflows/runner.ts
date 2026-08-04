@@ -92,6 +92,8 @@ export interface RunAgentOptions {
   modelRegistry: ExtensionContext["modelRegistry"];
   signal?: AbortSignal;
   onProgress?: (progress: AgentProgress) => void;
+  /** Optional allowlist applied before the standard child denylist. */
+  tools?: readonly string[];
   /** Test-only override for the per-tool execution timeout. */
   toolCallTimeoutMs?: number;
   /** Test-only override for the first assistant response-event timeout. */
@@ -442,6 +444,7 @@ export async function runAgent(
             }),
           ]
         : undefined;
+    const baseToolPolicy = childToolPolicy();
     ({ session } = await createAgentSession({
       cwd: options.cwd,
       ...(options.model ? { model: options.model } : {}),
@@ -452,7 +455,10 @@ export async function runAgent(
       settingsManager: options.settingsManager,
       sessionManager: SessionManager.inMemory(options.cwd),
       ...(customTools ? { customTools } : {}),
-      ...childToolPolicy(),
+      // The SDK keeps `tools` as a registry-level allowlist: refreshes filter
+      // built-ins, custom tools, and extension tools registered during binding.
+      ...(options.tools ? { tools: [...options.tools] } : {}),
+      excludeTools: [...baseToolPolicy.excludeTools],
     }));
     await bindChildSessionExtensions(session);
     unsubscribeToolTimeout = guardWorkflowChildTools(

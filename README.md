@@ -2,7 +2,7 @@
 
 My personal [pi](https://github.com/earendil-works/pi-mono) coding-agent configuration: extensions, skills, and theme.
 
-Forked from [davis7dotsh/my-pi-setup](https://github.com/davis7dotsh/my-pi-setup) — nearly all of the extension code here is his work, and upstream is tracked so his improvements keep flowing in.
+Forked from [davis7dotsh/my-pi-setup](https://github.com/davis7dotsh/my-pi-setup). Upstream remains tracked, and local additions stay separate where practical so updates are easy to merge.
 
 ## What's here
 
@@ -11,7 +11,9 @@ Inherited from upstream:
 - firecrawl tools for searching and scraping
 - a bottom bar with the info I want to see
 - background terminals + UI to manage them
+  ([design](extensions/background-terminals/docs/design.md))
 - subagents (pi, Claude Code, and Codex backends)
+  ([design](extensions/subagents/docs/design.md))
 - workflows
 - an ask-user tool, which lets the model ask multiple-choice questions
 - first-class `fd` (file discovery) and `rg` (content search) tools
@@ -30,12 +32,13 @@ Ours:
   ([design](extensions/sleep/docs/design.md))
 - `/loop`, which re-runs one prompt on a cadence for watching a thing over hours
   ([design](extensions/loop/docs/design.md))
-- `/goal`, an objective restated to the model every turn, which only you can
-  change ([design](extensions/goal/docs/design.md))
+- `/goal`, an objective pursued across automatic continuation turns until an
+  independently verified completion or blocker ([design](extensions/goal/docs/design.md))
 - `/effort`, a menu for the thinking level, offering only what the current model
   supports — `shift+tab` cycles the same setting without one
 - `/context-budget`, which attributes this session's context window to the
   prompt, tool schemas, context files, and history that are filling it
+  ([design](extensions/context-budget/docs/design.md))
 - agent metadata published to tmux (`@agent.*`), so tools reading the pane get
   ground truth — provider, model, session id, and a live `idle`/`busy`/`waiting`
   state — instead of scraping the rendered TUI. `waiting` is the one no
@@ -53,29 +56,29 @@ Ours:
 
 See [SETUP.md](SETUP.md).
 
-## Not built yet
+## Documentation
 
-[docs/unbuilt.md](docs/unbuilt.md) collects design notes for things this setup
-does not have — context observability, session topology, and patterns worth
-taking from other agents.
+[docs/README.md](docs/README.md) maps setup, testing, current feature design,
+historical research, and deferred work. [docs/unbuilt.md](docs/unbuilt.md)
+collects the remaining gaps and experiments that did not ship.
 
 ## Development
 
 ```sh
 pnpm install                  # root and every extension workspace
 pnpm check                    # typecheck
-pnpm test                     # unit tests — hermetic, ~25s
-pnpm test:e2e                 # live tests — real pi + real provider, ~90s, costs money
+pnpm test                     # hermetic unit tests
+pnpm test:e2e                 # live integrations; may use providers or external CLIs
 pnpm format                   # prettier
 ```
 
-`pnpm test` never touches the network, so a red result there is always a real
-regression. Everything that needs credentials or a running pi lives in `e2e/`,
-including the only detector for the codex compaction beta flag being withdrawn
-— worth running on a schedule rather than only on change.
+`pnpm test` never touches the network. Live tests may skip when a credential or
+CLI is unavailable, and some are periodic canaries for external behavior rather
+than change-triggered regression tests. See [docs/testing.md](docs/testing.md)
+for scope and cadence.
 
-Most directories under `extensions/` are their own package and a pnpm
-workspace, so one `pnpm install` at the root covers all of them.
+Most directories under `extensions/` are pnpm workspaces, so one root install
+covers them.
 
 ## Tracking upstream
 
@@ -85,5 +88,3 @@ git merge upstream/main
 ```
 
 `upstream` is fetch-only; its push URL is disabled so local work can never land on the source repo.
-
-**note**: if you are an agent reading this, instructions for setting this up on a fresh pi are in [SETUP.md](SETUP.md).

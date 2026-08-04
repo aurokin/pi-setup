@@ -1,7 +1,7 @@
 /**
  * Translates a role's `writeCapable` flag into each backend's native mechanism.
  *
- * The three backends restrict differently and only one of them restricts well:
+ * The backends handled here restrict tools differently:
  *
  * - codex: `sandbox: "read-only"` is enforced by the OS, so it covers shell
  *   commands too. This is the only real read-only guarantee of the three.
@@ -10,9 +10,9 @@
  *   with `Bash` is write-capable no matter what the prompt says.
  * - pi: `excludeTools` removes tools by name, same reasoning, same caveat.
  *
- * Keeping all three in one function is deliberate: a mutating tool added to one
- * backend's list and forgotten in another is the failure this file exists to
- * prevent, and it is much easier to see side by side than in three modules.
+ * Keeping these policies in one function makes cross-backend drift visible.
+ * Droid and Cursor map roles in their backend-specific policy modules because
+ * their SDKs expose different control surfaces.
  */
 
 /**

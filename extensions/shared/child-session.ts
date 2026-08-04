@@ -31,6 +31,7 @@ export interface ChildResourceOptions {
   projectTrusted: boolean;
   appendSystemPrompt?: string[];
   agentDir?: string;
+  noExtensions?: boolean;
 }
 
 /** Load normal global/package resources and trust-gated project resources. */
@@ -43,6 +44,7 @@ export async function createChildResources(options: ChildResourceOptions) {
     cwd: options.cwd,
     agentDir,
     settingsManager,
+    ...(options.noExtensions ? { noExtensions: true } : {}),
     ...(options.appendSystemPrompt
       ? { appendSystemPrompt: options.appendSystemPrompt }
       : {}),

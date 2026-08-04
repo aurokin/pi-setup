@@ -34,9 +34,9 @@ Measured against the live service before any of this was written:
 | Control, no artifact | 0/6 — "I don't have access to any earlier conversation" |
 | Replay cost | 192 input tokens standing in for six messages |
 
-`e2e/codex-compaction.test.ts` keeps those claims honest and skips when codex
-auth is absent. It lives outside `npm test` because it costs money and fails for
-reasons that have nothing to do with this repo.
+`e2e/codex-compaction.test.ts` keeps those claims honest and skips when Codex
+auth is absent. It lives outside `pnpm test` because it calls a live service.
+`docs/testing.md` explains the live-test cadence and skip semantics.
 
 ## Why the payload is snapshotted, not rebuilt
 
@@ -150,7 +150,7 @@ look exactly like it is working.**
 `e2e/codex-compaction.test.ts` is the canary, and it is the *only* one:
 
 ```
-npm run test:e2e     # skips silently without codex auth
+pnpm test:e2e     # skips without Codex auth
 ```
 
 Because the thing being watched changes on OpenAI's schedule and not on ours,

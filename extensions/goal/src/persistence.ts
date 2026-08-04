@@ -6,16 +6,23 @@
  * rather than a mutable record, which is what the session file already is and
  * what makes forking a session carry the goal that branch had at the time.
  *
- * `custom` entries deliberately do not participate in LLM context, so the goal
- * reaches the model exactly once, through the system prompt, rather than twice
- * with two different histories.
+ * `custom` entries deliberately do not participate in LLM context, so the
+ * persisted state does not create a second, historical copy of the goal beside
+ * the current system-prompt rendering.
  */
 
-import type { Goal, GoalStatus } from "./goal.ts";
+import {
+  isModelStatus,
+  type Goal,
+  type GoalClaim,
+  type GoalStatus,
+  type GoalThinkingLevel,
+} from "./goal.ts";
 
 export const GOAL_ENTRY_TYPE = "goal";
 
-const VERSION = 1;
+const VERSION = 2;
+const LEGACY_VERSION = 1;
 
 export interface PersistedGoal {
   readonly version: number;
@@ -32,6 +39,16 @@ const STATUSES: readonly GoalStatus[] = [
   "paused",
   "complete",
   "blocked",
+];
+
+const THINKING_LEVELS: readonly GoalThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
 ];
 
 /**
@@ -66,15 +83,49 @@ export function latestGoal(entries: readonly unknown[]): Goal | undefined {
 function parse(data: unknown): Goal | undefined | "unknown" {
   if (typeof data !== "object" || data === null) return "unknown";
   const record = data as Record<string, unknown>;
-  if (record.version !== VERSION) return "unknown";
+  if (record.version !== VERSION && record.version !== LEGACY_VERSION) {
+    return "unknown";
+  }
   const goal = record.goal;
   if (goal === undefined) return undefined;
   if (typeof goal !== "object" || goal === null) return "unknown";
   const candidate = goal as Record<string, unknown>;
+  // v1 readers ignore unknown fields. Refuse a hand-authored v1 entry carrying
+  // v2 state so a downgrade cannot reinterpret a pending claim as active work.
+  if (
+    record.version === LEGACY_VERSION &&
+    (candidate.claim !== undefined ||
+      candidate.continuationContext !== undefined ||
+      candidate.continuationStopped !== undefined)
+  ) {
+    return "unknown";
+  }
   if (typeof candidate.text !== "string" || candidate.text.length === 0) {
     return "unknown";
   }
   if (!STATUSES.includes(candidate.status as GoalStatus)) return "unknown";
+  const claim = parseClaim(candidate.claim);
+  if (
+    claim === "unknown" ||
+    (claim !== undefined && candidate.status !== "active")
+  ) {
+    return "unknown";
+  }
+  if (
+    candidate.continuationContext !== undefined &&
+    typeof candidate.continuationContext !== "string"
+  ) {
+    return "unknown";
+  }
+  if (
+    candidate.continuationStopped !== undefined &&
+    candidate.continuationStopped !== "run_failed"
+  ) {
+    return "unknown";
+  }
+  if (claim !== undefined && candidate.continuationStopped !== undefined) {
+    return "unknown";
+  }
   return {
     text: candidate.text,
     status: candidate.status as GoalStatus,
@@ -82,5 +133,61 @@ function parse(data: unknown): Goal | undefined | "unknown" {
     updatedAt:
       typeof candidate.updatedAt === "number" ? candidate.updatedAt : 0,
     note: typeof candidate.note === "string" ? candidate.note : undefined,
+    claim,
+    continuationContext: candidate.continuationContext,
+    continuationStopped: candidate.continuationStopped,
   };
+}
+
+function parseClaim(value: unknown): GoalClaim | undefined | "unknown" {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null) return "unknown";
+  const claim = value as Record<string, unknown>;
+  if (!isModelStatus(claim.status)) return "unknown";
+  if (claim.note !== undefined && typeof claim.note !== "string") {
+    return "unknown";
+  }
+  const model = parseModel(claim.model);
+  if (model === "unknown") return "unknown";
+  if (
+    claim.thinkingLevel !== undefined &&
+    !THINKING_LEVELS.includes(claim.thinkingLevel as GoalThinkingLevel)
+  ) {
+    return "unknown";
+  }
+  if (
+    claim.sourceRunId !== undefined &&
+    typeof claim.sourceRunId !== "string"
+  ) {
+    return "unknown";
+  }
+  if (
+    claim.sourceRunOutcome !== undefined &&
+    claim.sourceRunOutcome !== "pending" &&
+    claim.sourceRunOutcome !== "succeeded" &&
+    claim.sourceRunOutcome !== "failed"
+  ) {
+    return "unknown";
+  }
+  return {
+    status: claim.status,
+    note: claim.note,
+    claimedAt: typeof claim.claimedAt === "number" ? claim.claimedAt : 0,
+    model,
+    thinkingLevel: claim.thinkingLevel as GoalThinkingLevel | undefined,
+    sourceRunId: claim.sourceRunId,
+    sourceRunOutcome: claim.sourceRunOutcome,
+  };
+}
+
+function parseModel(
+  value: unknown,
+): GoalClaim["model"] | undefined | "unknown" {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null) return "unknown";
+  const model = value as Record<string, unknown>;
+  if (typeof model.provider !== "string" || typeof model.id !== "string") {
+    return "unknown";
+  }
+  return { provider: model.provider, id: model.id };
 }

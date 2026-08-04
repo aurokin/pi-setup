@@ -1,5 +1,10 @@
-# background-terminals — Implementation Guide
+# background-terminals implementation guide
 
+> **Historical implementation plan.** The extension has shipped. Use its source, tests,
+> root pnpm commands, and installed package versions for current work. The pinned
+> versions, personal paths, package manifests, and acceptance checklist below are kept
+> only as design history.
+>
 > Research phase output. Updated 2026-07-24 against:
 > - `effect@4.0.0-beta.101` (verified installed in this package's `node_modules/effect`; the
 >   `unstable/process` module exists there but we deliberately do NOT use it — see §6)

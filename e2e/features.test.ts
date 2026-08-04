@@ -80,12 +80,7 @@ async function turn(text: string, timeoutMs = 120_000): Promise<string> {
   return seen();
 }
 
-/**
- * A slash command is not a turn.
- *
- * Pi executes extension commands and returns without running the agent, so
- * `agent_settled` never arrives — wait for the command's own output instead.
- */
+/** Wait for a slash command's own output. An extension may then trigger a turn. */
 async function command(text: string, expect: RegExp): Promise<string> {
   events = [];
   send({ type: "prompt", message: text });
@@ -110,38 +105,33 @@ test(
 );
 
 test(
-  "a goal reaches the model, and leaves when it is done",
+  "a goal continues itself and independently verifies completion",
   { skip: !available && UNAVAILABLE },
   async () => {
-    assert.match(
-      await command("/goal ship the PINEAPPLE migration", /Goal set/),
+    const started = await command(
+      "/goal Verify that README.md exists in the current working directory, then report the goal complete.",
       /Goal set/,
     );
-    assert.match(await command("/goal", /PINEAPPLE/), /PINEAPPLE migration/);
+    assert.match(started, /Goal set/);
 
-    const quoted = await turn(
-      "Without using any tools, quote back the current goal exactly as your instructions state it.",
+    // Nothing else is typed: the command starts the primary run, goal_update
+    // records a provisional claim, and a same-model child verifies it.
+    await until(
+      () => /Goal complete confirmed/.test(seen()),
+      "automatic goal completion and verification",
+      180_000,
     );
     assert.match(
-      quoted,
-      /PINEAPPLE/,
-      "the goal never reached the system prompt",
+      seen(),
+      /goal_update/,
+      "the primary never reported completion",
     );
+    assert.match(await command("/goal", /Complete/), /Complete/);
 
-    // The schema forbids "active", so what must not happen is the goal becoming
-    // active again — however the provider or model chooses to refuse.
-    const reopened = await turn(
-      "Call goal_update with status 'active' and note 'reopening'.",
-    );
-    assert.doesNotMatch(reopened, /"status":"active"/);
-
-    await turn(
-      "Call goal_update with status 'complete' and note 'shipped it'.",
-    );
     const after = await turn(
       "Without using tools, is there a 'Current goal' section in your instructions right now? Answer only YES or NO.",
     );
-    assert.match(after, /\bNO\b/, "a finished goal stayed in context");
+    assert.match(after, /\bNO\b/, "a verified goal stayed in context");
     await command("/goal clear", /cleared/i);
   },
 );

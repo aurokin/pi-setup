@@ -1,4 +1,4 @@
-# System Prompt Extension Design
+# System prompt extension
 
 Goal: make pi behave more like our preferred coding agents while keeping pi's
 prompt compact, provider-neutral, and cheap enough for local models.
@@ -27,17 +27,12 @@ Reasons:
   before coding, prefer simplicity, make surgical edits, and verify against
   explicit success criteria. This is the closest model for what we want and the
   direct ancestor of the current bullets.
-- Codex base prompt:
-  `~/code/upstream/codex/codex-rs/protocol/src/prompts/base_instructions/default.md`
-  — a full operating contract: terminal-agent role, progress updates, planning,
-  editing constraints, dirty-worktree handling, validation, response formatting.
-- Codex model/personality overlays and collaboration modes under
-  `~/code/upstream/codex/codex-rs/core/templates/` and
-  `collaboration-mode-templates/` — pragmatic voice, response shaping, and
-  behavior split by Default/Plan/Execute mode.
-- Pi default prompt:
-  `~/code/upstream/pi-mono/packages/coding-agent/src/core/system-prompt.ts` —
-  intentionally small.
+- Codex's `codex-rs/protocol/src/prompts/base_instructions/default.md`: a full
+  operating contract covering planning, editing constraints, worktree handling,
+  validation, and response format.
+- Codex model and collaboration-mode templates under `codex-rs/core/templates/`:
+  pragmatic voice, response shaping, and mode-specific behavior.
+- Pi's `packages/coding-agent/src/core/system-prompt.ts`: intentionally small.
 
 ## Implementation
 
@@ -46,25 +41,20 @@ Reasons:
 1. This extension, appending it to the parent session prompt.
 2. Subagent role prompts, so managed children inherit the same rules.
 
-Keeping one source is the point. The previous standalone version of this work
-had a live copy and a documented copy that drifted apart within a few edits.
+One source prevents the parent and child policies from drifting apart.
 
-The append is idempotent — `before_agent_start` fires per user prompt and its
-results chain across extensions, so an unconditional append could stack copies.
+The append is idempotent because `before_agent_start` fires for every user
+prompt and extension results are chained. An unconditional append could stack
+copies.
 
-## Adapted for this repo
+## Verification
 
-The search bullet names the `fd` and `rg` **tools** registered by the
-`file-search` extension, not the shell binaries. Telling the model to shell out
-would route it around the tool this setup deliberately provides.
-
-## Acceptance checks
-
-- `PI_OFFLINE=1 pi --list-models` loads the extension without errors.
-- The policy appears exactly once in the assembled system prompt.
-- A cheap hosted model can answer a simple no-tools prompt without leaking
-  policy text into its reply.
-- An edit smoke test still favors scoped diffs and reports validation clearly.
+- `pnpm test` checks that the committed policy matches its TypeScript source and
+  that parent and child prompts include it once.
+- `pnpm prompt --open` shows the assembled parent prompt and rendered child-role
+  prompts for manual review.
+- Model adherence is not established by structural tests. The withdrawn
+  behavioral experiment and its limits are recorded in `docs/unbuilt.md`.
 
 ## Deferred
 

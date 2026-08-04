@@ -83,7 +83,7 @@ Durable roles. Effort runs `low`, `medium`, `high`, `xhigh` — pick by task dif
 {{harness-sections}}
 ## Spawn and Manage
 
-Call `subagent_spawn` with a complete `prompt`, short `name`, chosen `harness`, and optional `working_dir`, `model`, and `reasoning_effort`. At most four subagents run concurrently.
+Call `subagent_spawn` with a complete `prompt`, short `name`, required `role`, and chosen `harness`. `working_dir`, `model`, and `reasoning_effort` are optional.
 
 - `subagent_check({ id })`: peek without blocking.
 - `subagent_list()`: list all runs.
