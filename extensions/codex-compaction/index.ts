@@ -160,7 +160,10 @@ export default function codexCompaction(pi: ExtensionAPI) {
       // that replaced pi's.
       resolveReserveTokens(ctx),
       auth.apiKey,
-      auth.headers,
+      // ProviderHeaders may hold null suppression markers; pi forwards these
+      // untouched into the pi-ai stream, where null deletes a default header.
+      // The parameter's Record<string, string> signature is stale upstream.
+      auth.headers as Record<string, string> | undefined,
       signal,
       customInstructions,
       preparation.previousSummary,
