@@ -49,8 +49,6 @@ Ours:
 - Droid and Cursor subagent backends on top of upstream's three, plus a
   `subagents` skill rendered at startup from the harnesses actually configured,
   so it can never list one that is not there
-- `/runtime`, which routes this session's prompts to Claude Code and back
-  without losing either conversation
 
 ## Setup
 

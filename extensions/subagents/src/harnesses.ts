@@ -4,15 +4,10 @@
  * Two different questions get conflated easily, so they are kept apart here:
  *
  * - **Registered** — the backend exists and the extension's own features can
- *   use it. `/btw` spawns a pi child (only pi can fork the parent's history),
- *   and `/runtime claude` spawns a claude one. Neither goes through the enum,
- *   so neither is affected by this config.
+ *   use it. `/btw` spawns a pi child (only pi can fork the parent's history)
+ *   without going through the enum, so it is not affected by this config.
  * - **Offered** — the model sees it in the `harness` enum and may route to it.
  *   That is what this file controls, and only that.
- *
- * The distinction matters most for claude: wanting `/runtime claude` while the
- * model does *not* fan out to claude children is a reasonable position, and a
- * single on/off switch cannot express it.
  *
  * Config lives beside pi's own settings, in `<agent dir>/subagents.json`, and
  * is written with defaults the first time the extension loads so the options
@@ -64,7 +59,7 @@ export const CONFIG_FILENAME = "subagents.json";
 const CONFIG_NOTE =
   "Harnesses subagent_spawn offers the model. 'pi' is always offered and cannot be removed. Known: " +
   ALL_HARNESSES.join(", ") +
-  ". Removing a harness here does not affect /btw or /runtime claude.";
+  ". Removing a harness here does not affect /btw.";
 
 export interface HarnessSelection {
   /** Offered to the model, in catalog order, always including `pi`. */

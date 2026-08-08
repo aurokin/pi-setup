@@ -77,6 +77,54 @@ test(
 );
 
 test(
+  "Claude backend send continues the conversation across turns",
+  { timeout: 180_000 },
+  async (t) => {
+    if (!(await claudeAvailable())) {
+      t.skip("Claude Code executable is unavailable");
+      return;
+    }
+
+    const runtime = createSubagentRuntime();
+    try {
+      const manager = await runtime.runPromise(SubagentManager);
+      const started = await runTool(
+        runtime,
+        manager.spawn(
+          "claude",
+          task("Remember the word cormorant. Reply with exactly: ready"),
+        ),
+      );
+      await deadline(runTool(runtime, manager.waitFor([started.id])), 80_000);
+      const first = manager.view.get(started.id);
+      assert.equal(first?.status, "done", first?.errorText ?? "");
+      assert.match(first?.finalText ?? "", /ready/i);
+      // view.get returns the *live* snapshot, so anything compared across
+      // turns has to be copied out before the next one mutates it.
+      const turnsAfterFirst = first?.turns ?? 0;
+
+      await runTool(
+        runtime,
+        manager.send(
+          started.id,
+          "What word did I ask you to remember? Reply with just that word.",
+        ),
+      );
+      await deadline(runTool(runtime, manager.waitFor([started.id])), 80_000);
+      const second = manager.view.get(started.id);
+      assert.equal(second?.status, "done", second?.errorText ?? "");
+      assert.match(second?.finalText ?? "", /cormorant/i);
+      assert.ok(
+        (second?.turns ?? 0) > turnsAfterFirst,
+        `turns did not advance past ${turnsAfterFirst}`,
+      );
+    } finally {
+      await runtime.dispose();
+    }
+  },
+);
+
+test(
   "Claude backend interrupt settles a live run as aborted",
   { timeout: 60_000 },
   async (t) => {

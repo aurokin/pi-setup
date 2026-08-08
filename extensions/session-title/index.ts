@@ -3,9 +3,9 @@
  *
  * pi titles its terminal `π - [name -] <cwd>`, and with no name that is just a
  * directory. Fine with one pi open; useless with six, which is the normal shape
- * of this setup now that workflows, subagents and a primary runtime each want
- * their own pane. Tools that read tmux titles — `agentscan`, the tmux status
- * line — show the directory six times and tell you nothing.
+ * of this setup now that workflows and subagents each want their own pane.
+ * Tools that read tmux titles — `agentscan`, the tmux status line — show the
+ * directory six times and tell you nothing.
  *
  * `setSessionName` is the supported channel, and the only one that survives.
  * `ctx.ui.setTitle` looks like the obvious API and is not: pi core re-applies

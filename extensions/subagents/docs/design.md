@@ -10,7 +10,7 @@ depend on a backend's wire format.
 A registered harness has an implementation and may support extension-owned
 features. An offered harness appears in the model-facing `subagent_spawn` enum.
 `subagents.json` controls the offered set, while internal features such as
-`/btw` and `/runtime` can use registered backends independently.
+`/btw` can use registered backends independently.
 
 The generated `subagents` skill uses the same selection that builds the tool
 schema. This keeps model-facing routing advice from listing a harness the tool

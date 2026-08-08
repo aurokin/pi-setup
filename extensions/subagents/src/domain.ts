@@ -21,18 +21,17 @@ export type ForkedMessage = Parameters<SessionManager["appendMessage"]>[0];
 /**
  * Every backend that exists. Not every one is offered to the model — the
  * `harness` enum is built from the configured selection in `harnesses.ts`,
- * while internal features (`/btw`, `/runtime claude`) address backends by name
- * regardless of it.
+ * while internal features (`/btw`) address backends by name regardless of it.
  */
 export const BACKEND_NAMES = ALL_HARNESSES;
 export type BackendName = HarnessName;
 
 /**
  * Who initiated the session. Only "model" sessions are visible to the subagent
- * tools; user asides ("btw") and the primary Claude runtime ("primary") are
- * this session's own conversations, not fan-out the model should manage.
+ * tools; user asides ("btw") are this session's own conversations, not
+ * fan-out the model should manage.
  */
-export type SubagentOrigin = "model" | "btw" | "primary";
+export type SubagentOrigin = "model" | "btw";
 
 /**
  * Shared reasoning-effort scale (pi's thinking levels). Each backend maps a

@@ -17,10 +17,10 @@ import type { BackendName } from "./domain.ts";
 
 /**
  * Every implemented backend is registered, whatever the config offers. `/btw`
- * needs pi and `/runtime claude` needs claude, and neither goes through the
- * `harness` enum — config decides what the *model* may route to, not what
- * exists. Registering droid and cursor here costs nothing until one is
- * offered: `available` probes their credentials only when a spawn asks.
+ * needs pi and does not go through the `harness` enum — config decides what
+ * the *model* may route to, not what exists. Registering droid and cursor here
+ * costs nothing until one is offered: `available` probes their credentials
+ * only when a spawn asks.
  */
 const BackendRegistryLive = Layer.sync(BackendRegistry, () => {
   const backends: SubagentBackend[] = [

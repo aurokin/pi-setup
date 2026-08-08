@@ -48,8 +48,7 @@ import {
  * An arbitrary-but-deliberate ceiling on fan-out, not a platform limit; davis7's
  * design plan left global-vs-per-backend caps open, and the sibling
  * background-terminals manager picks 8 on the grounds that processes are
- * cheaper than agents. The primary runtime is exempt (see `capExempt`): it is
- * the user's own conversation, not fan-out.
+ * cheaper than agents.
  */
 export const MAX_RUNNING = 5;
 export const MAX_TRACKED = 64;
@@ -227,12 +226,10 @@ const makeManager = Effect.gen(function* () {
   const counters: Record<SubagentOrigin, number> = {
     model: 0,
     btw: 0,
-    primary: 0,
   };
   const ID_PREFIX: Record<SubagentOrigin, string> = {
     model: "sa",
     btw: "btw",
-    primary: "pri",
   };
   let reserved = 0;
   let disposed = false;
@@ -271,23 +268,11 @@ const makeManager = Effect.gen(function* () {
     });
   });
 
-  /**
-   * Running sessions that count against the fan-out cap.
-   *
-   * The cap bounds how many agents the model can set going at once. The
-   * primary runtime is the user's own conversation wearing a session, so it
-   * neither consumes a slot nor waits for one — otherwise four busy subagents
-   * would make the user's next prompt fail.
-   */
+  /** Running sessions that count against the fan-out cap. */
   const runningCount = () =>
     [...entries.values()].filter(
-      (e) =>
-        e.snapshot.origin !== "primary" &&
-        (e.snapshot.status === "running" || e.restarting === true),
+      (e) => e.snapshot.status === "running" || e.restarting === true,
     ).length;
-
-  const capExempt = (origin: SubagentOrigin | undefined) =>
-    origin === "primary";
 
   const addInterest = (ids: ReadonlyArray<string>) => {
     for (const id of ids) waitInterest.set(id, (waitInterest.get(id) ?? 0) + 1);
@@ -543,10 +528,7 @@ const makeManager = Effect.gen(function* () {
               message: "Subagent manager is shutting down.",
             });
           }
-          if (
-            !capExempt(task.origin) &&
-            runningCount() + reserved >= MAX_RUNNING
-          ) {
+          if (runningCount() + reserved >= MAX_RUNNING) {
             return new ConcurrencyLimitError({
               message: `Max ${MAX_RUNNING} subagents can run concurrently. Wait for one to finish before spawning another.`,
             });
@@ -757,10 +739,7 @@ const makeManager = Effect.gen(function* () {
       // must respect the same cap as spawn. Steering an already-running one
       // does not consume additional capacity.
       if (entry.snapshot.status !== "running") {
-        if (
-          !capExempt(entry.snapshot.origin) &&
-          runningCount() + reserved >= MAX_RUNNING
-        ) {
+        if (runningCount() + reserved >= MAX_RUNNING) {
           return new SendError({
             message: `Max ${MAX_RUNNING} subagents can run concurrently; restarting "${id}" would exceed that.`,
           });

@@ -4,12 +4,8 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import {
   emptyModelInfoState,
-  emptyPrimaryRuntimeState,
-  isPrimaryRuntimeState,
   MODEL_INFO_CHANNEL,
-  PRIMARY_RUNTIME_CHANNEL,
   REFRESH_CHANNEL,
-  withPrimaryRuntime,
 } from "../shared/dashboard-state.ts";
 
 const CHARS_PER_ESTIMATED_TOKEN = 4;
@@ -43,13 +39,8 @@ export default function modelInfo(pi: ExtensionAPI) {
   let runContentStreamMs = 0;
   let lastLiveUpdate = 0;
   let currentContext: ExtensionContext | undefined;
-  // Published by the subagents extension while Claude answers this session's
-  // prompts. pi's own model is unchanged and idle throughout, so every field
-  // this file measures describes the wrong conversation until it clears.
-  let primary = emptyPrimaryRuntimeState();
 
-  const publish = () =>
-    pi.events.emit(MODEL_INFO_CHANNEL, withPrimaryRuntime(state, primary));
+  const publish = () => pi.events.emit(MODEL_INFO_CHANNEL, state);
 
   function refresh(ctx: ExtensionContext) {
     currentContext = ctx;
@@ -82,14 +73,6 @@ export default function modelInfo(pi: ExtensionAPI) {
 
   const stopRefreshListener = pi.events.on(REFRESH_CHANNEL, () => {
     if (currentContext) refresh(currentContext);
-  });
-
-  const stopPrimaryListener = pi.events.on(PRIMARY_RUNTIME_CHANNEL, (value) => {
-    if (!isPrimaryRuntimeState(value)) return;
-    primary = value;
-    // Republish directly: pi fires none of the events below for a turn it never
-    // started, so this is the only thing that moves the bar while Claude works.
-    publish();
   });
 
   pi.on("session_start", (_event, ctx) => {
@@ -222,7 +205,6 @@ export default function modelInfo(pi: ExtensionAPI) {
 
   pi.on("session_shutdown", () => {
     stopRefreshListener();
-    stopPrimaryListener();
     currentContext = undefined;
   });
 }

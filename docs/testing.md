@@ -29,7 +29,7 @@ takes a model turn. It is free to run and covers the integration between
 
 The subagent suites need the backend they exercise:
 
-- Claude and primary-runtime tests need an authenticated Claude Code CLI.
+- Claude subagent tests need an authenticated Claude Code CLI.
 - Codex subagent tests need an authenticated Codex CLI.
 - Compaction and feature tests use pi's configured `openai-codex` credential.
 - Pi-backend tests need their configured provider model.

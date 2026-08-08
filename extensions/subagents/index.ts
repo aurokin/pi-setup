@@ -4,8 +4,7 @@
  *
  * Tools (for the parent LLM):
  * - subagent_spawn: fire-and-forget spawn (prompt, name, role, harness,
- *   working_dir, model, reasoning_effort). MAX_RUNNING applies across backends;
- *   the primary runtime is exempt.
+ *   working_dir, model, reasoning_effort). MAX_RUNNING applies across backends.
  * - subagent_wait: block until the listed subagents settle, return results.
  * - subagent_cancel: stop one or more running subagents.
  * - subagent_check: peek at a subagent's status and recent activity.
@@ -47,7 +46,6 @@ import {
   forkableMessages,
   isModelVisible,
 } from "./src/by-the-way.ts";
-import { registerPrimaryRuntime } from "./src/primary/index.ts";
 import {
   ALL_HARNESSES,
   CONFIG_FILENAME,
@@ -209,13 +207,7 @@ export default function (pi: ExtensionAPI) {
 
   const updateStatus = (manager: SubagentManagerShape) => {
     if (!ui) return;
-    // The primary runtime is this session's own conversation, not delegated
-    // work, so counting it here reads as "you have 1 subagent" the moment
-    // Claude answers a prompt. It stays in the /subagents picker, where taking
-    // it over to watch the live stream is genuinely useful.
-    const subs = manager.view
-      .list()
-      .filter((snap) => snap.origin !== "primary");
+    const subs = manager.view.list();
     if (subs.length === 0) {
       ui.setStatus("subagents", undefined);
       return;
@@ -280,10 +272,6 @@ export default function (pi: ExtensionAPI) {
       deliverBtwResult({ ...snap, meta: { ...snap.meta } });
       return;
     }
-    // The primary runtime renders its own turns and must never be delivered as
-    // a follow-up: that would hand Claude's reply to pi's model as a prompt and
-    // start a native turn behind the user's back.
-    if (snap.origin === "primary") return;
     if (consumed) {
       resultDelivery.consume([snap.id]);
       return;
@@ -304,7 +292,6 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_settled", flushResults);
 
   pi.on("session_shutdown", async () => {
-    primary.dispose();
     sessionContext = undefined;
     resultDelivery.clear();
     unsubStatus?.();
@@ -799,97 +786,6 @@ export default function (pi: ExtensionAPI) {
     description:
       "Ask a side question against this conversation while the main agent keeps working — can act if you ask it to",
     handler: runByTheWay,
-  });
-
-  const primary = registerPrimaryRuntime(pi, {
-    getManager,
-    ui: () => ui,
-    send: async (id, text) => {
-      const manager = await getManager();
-      await runTool(getRuntime(), manager.send(id, text));
-    },
-    abort: (id) => {
-      // Fire-and-forget by design: the read model runs it detached and the
-      // resulting settle arrives through the same subscription as any turn.
-      void getManager().then((manager) => manager.view.requestAbort(id));
-    },
-    spawn: async (options) => {
-      const manager = await getManager();
-      const ctx = sessionContext;
-      if (!ctx) throw new Error("Session is not ready.");
-      return runTool(
-        getRuntime(),
-        manager.spawn("claude", {
-          origin: "primary",
-          prompt: options.prompt,
-          // The primary runtime is the user driving; it is not a read-only
-          // helper, so it gets the role that can actually change things.
-          role: "worker",
-          title: "primary runtime",
-          cwd: options.cwd,
-          model: options.model,
-          reasoningEffort: options.effort as never,
-          parent: {
-            parentCwd: ctx.cwd,
-            projectTrusted: ctx.isProjectTrusted(),
-            inheritedModel: ctx.model
-              ? { provider: ctx.model.provider, id: ctx.model.id }
-              : undefined,
-            inheritedThinkingLevel: pi.getThinkingLevel(),
-            modelRegistry: ctx.modelRegistry,
-          },
-        }),
-      );
-    },
-  });
-
-  // Without a renderer pi labels a custom message with its raw customType, so
-  // the handoff note reaches the user prefixed with "[runtime-handoff]".
-  pi.registerMessageRenderer("runtime-handoff", (message, _options, theme) => {
-    const content = typeof message.content === "string" ? message.content : "";
-    const header = theme.fg("muted", "↩ runtime handed back to pi");
-    let text = header;
-    for (const line of content.split("\n"))
-      text += `\n${theme.fg("muted", line)}`;
-    return new Text(text, 0, 0);
-  });
-
-  pi.registerEntryRenderer<{
-    text?: string;
-    status?: string;
-    errorText?: string;
-    model?: string;
-  }>("runtime-turn", (entry, { expanded }, theme) => {
-    const data = entry.data;
-    const failed = data?.status === "error";
-    const header =
-      `${failed ? theme.fg("error", "x") : theme.fg("accent", "▌")} ` +
-      theme.fg("accent", theme.bold(data?.model ?? "claude")) +
-      (failed ? theme.fg("error", " · failed") : "");
-    const body = [data?.errorText ? `Error: ${data.errorText}` : "", data?.text]
-      .filter(Boolean)
-      .join("\n\n");
-    if (expanded) {
-      const md = new Markdown(body, 0, 0, getMarkdownTheme());
-      const container = new Text(header, 0, 0);
-      return {
-        render: (width: number) => [
-          ...container.render(width),
-          ...md.render(width),
-        ],
-        invalidate: () => {
-          container.invalidate();
-          md.invalidate();
-        },
-      };
-    }
-    const lines = body.split("\n");
-    let text = header;
-    for (const line of lines.slice(0, 12))
-      text += `\n${theme.fg("toolOutput", line)}`;
-    if (lines.length > 12)
-      text += `\n${theme.fg("dim", "... (ctrl+o to expand)")}`;
-    return new Text(text, 0, 0);
   });
 
   pi.registerCommand("subagents", {
