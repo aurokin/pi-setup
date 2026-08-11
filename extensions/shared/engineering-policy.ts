@@ -29,9 +29,11 @@
  * worth copying. It is also the one rule a Claude Code or Codex child would
  * otherwise never see, since neither runs pi's base prompt.
  *
- * The second-opinion rules name `rubber-duck`, `advisor`, and `consult` because
- * different coding agents expose different mechanisms. The local `roles.ts`
- * implements the first two. Other agents may provide `consult` instead.
+ * The orchestration rules describe capabilities conditionally because not every
+ * harness exposes individual subagents or a workflow tool. The second-opinion
+ * rules likewise name `rubber-duck`, `advisor`, and `consult` because different
+ * coding agents expose different mechanisms. The local `roles.ts` implements
+ * the first two. Other agents may provide `consult` instead.
  *
  * Anything a tool description already conveys belongs in the schema, not here:
  * the `rg`/`fd` guidance went once their tool descriptions were confirmed to
@@ -59,8 +61,25 @@ export const ENGINEERING_POLICY_BULLETS = [
   "- Take advantage of the language's type system. Do not bypass type safety without a concrete reason.",
   "- Confirm that a referenced file, symbol, or API exists before relying on it.",
   "- If something the request assumes does not exist, say so. Do not create it unless the user asked you to.",
-  "- Verify diagnoses, commands, and reports from users, subagents, and workflows before acting on them or passing them on.",
+  "- Verify claims before using them to make a decision or change.",
+  "- If you pass along a claim you did not verify, label it as unverified.",
+  "- Spend verification effort on findings that affect the decision. Do not verify every result by default.",
   "- Clearly separate what you confirmed from what you did not confirm.",
+];
+
+export const ORCHESTRATION_HEADER = "## Orchestration";
+
+export const ORCHESTRATION_BULLETS = [
+  "- Work solo by default. Orchestrate when the work has useful independent parts and parallel effort would materially improve speed or quality.",
+  "- If the user asks for a team, parallel agents, or delegation, orchestrate. If the task has no useful independent subtask, say so and work solo instead of inventing one.",
+  "- Delegate concrete, bounded subtasks that can run independently. Keep tightly coupled work or work that cannot be briefed clearly in the current session.",
+  "- Do not delegate routine operations that are faster in context, such as reading one normal-sized file, running one test, linting, or typechecking.",
+  "- Use the fewest agents needed to obtain the benefit. Give each agent a distinct purpose.",
+  "- When research or heavy reading feeds a decision, delegate the evidence gathering and keep the decision in the current session.",
+  "- Use individual subagents for one or a few independent tasks. When a workflow tool is available, use it for ordered phases, dynamic fan-out, or structured handoffs.",
+  "- Before agents edit files in parallel, assign non-overlapping ownership. Keep coupled edits serial.",
+  "- If the user requested orchestration and no suitable mechanism is available, say so. Do not silently substitute solo work.",
+  "- Delegation sends the prompt and any files read to the child provider. Do not send credentials, secrets, or content from private knowledge roots without explicit approval for that provider.",
 ];
 
 export const SECOND_OPINIONS_HEADER = "## Second Opinions";
@@ -182,6 +201,12 @@ export const ENGINEERING_POLICY = [
   ...ENGINEERING_POLICY_BULLETS,
 ].join("\n");
 
+export const ORCHESTRATION = [
+  ORCHESTRATION_HEADER,
+  "",
+  ...ORCHESTRATION_BULLETS,
+].join("\n");
+
 export const SECOND_OPINIONS = [
   SECOND_OPINIONS_HEADER,
   "",
@@ -227,6 +252,7 @@ export const KNOWN_PERFORMANCE_PITFALLS = [
 /** Portable sections, in the order they are injected. */
 export const PORTABLE_AGENT_RULES = [
   ENGINEERING_POLICY,
+  ORCHESTRATION,
   SECOND_OPINIONS,
   SAFETY_RULES,
   TESTING_GUIDELINES,

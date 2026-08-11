@@ -138,6 +138,10 @@ test("the shipped markdown renders a skill for the default harnesses", () => {
   assert.match(text, /## Pi Harness/);
   assert.match(text, /## Claude Code Harness/);
   assert.match(text, /## Codex Harness/);
+  assert.match(text, /## Provider egress/);
+  assert.match(text, /Diffwarden.*diff-backed code review/);
+  assert.doesNotMatch(text, /## Delegate or not/);
+  assert.doesNotMatch(text, /whether to delegate at all/);
   // Off by default, so nothing may describe them.
   assert.doesNotMatch(text, /## Droid Harness/);
   assert.doesNotMatch(text, /## Cursor Harness/);

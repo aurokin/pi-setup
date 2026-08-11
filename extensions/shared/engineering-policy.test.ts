@@ -15,6 +15,9 @@ import {
   KNOWN_PERFORMANCE_PITFALLS,
   KNOWN_PERFORMANCE_PITFALLS_BULLETS,
   KNOWN_PERFORMANCE_PITFALLS_HEADER,
+  ORCHESTRATION,
+  ORCHESTRATION_BULLETS,
+  ORCHESTRATION_HEADER,
   PI_AGENT_RULES,
   PI_WORKSPACE_BULLETS,
   PORTABLE_AGENT_RULES,
@@ -94,6 +97,7 @@ test("portable sections are their header, then nothing but bullets", () => {
   // the rules above it.
   for (const [section, header, bullets] of [
     [ENGINEERING_POLICY, ENGINEERING_POLICY_HEADER, ENGINEERING_POLICY_BULLETS],
+    [ORCHESTRATION, ORCHESTRATION_HEADER, ORCHESTRATION_BULLETS],
     [SECOND_OPINIONS, SECOND_OPINIONS_HEADER, SECOND_OPINIONS_BULLETS],
     [SAFETY_RULES, SAFETY_RULES_HEADER, SAFETY_RULES_BULLETS],
     [TESTING_GUIDELINES, TESTING_GUIDELINES_HEADER, TESTING_GUIDELINES_BULLETS],
@@ -130,6 +134,20 @@ test("says nothing the tool schema already conveys", () => {
   assert.ok(!ENGINEERING_POLICY.includes("`rg` tool"));
   assert.ok(!ENGINEERING_POLICY.includes("`fd` tool"));
   assert.ok(!ENGINEERING_POLICY.includes("ask_user"));
+});
+
+test("orchestration advice is portable and keeps solo work as the default", () => {
+  assert.match(ORCHESTRATION_BULLETS[0] ?? "", /Work solo by default/);
+  assert.match(ORCHESTRATION, /workflow tool is available/);
+  assert.match(ORCHESTRATION, /non-overlapping ownership/);
+  assert.match(ORCHESTRATION, /explicit approval for that provider/);
+  assert.doesNotMatch(PORTABLE_AGENT_RULES, /diffwarden/i);
+});
+
+test("verification effort follows the decisions it can affect", () => {
+  assert.match(ENGINEERING_POLICY, /decision or change/);
+  assert.match(ENGINEERING_POLICY, /Do not verify every result by default/);
+  assert.match(ENGINEERING_POLICY, /label it as unverified/);
 });
 
 test("second-opinion advice lives in one reviewable section", () => {

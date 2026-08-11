@@ -40,6 +40,12 @@ test("enabling a harness puts it in the description and the enum's docs", () => 
   }
 });
 
+test("the spawn guideline assumes delegation was already chosen", () => {
+  const first = subagentSpawnPromptGuidelines(DEFAULT_HARNESSES)[0] ?? "";
+  assert.match(first, /^When using subagent_spawn/);
+  assert.doesNotMatch(first, /^Use subagent_spawn/);
+});
+
 test("a harness selectable on task fit is offered as such", () => {
   const lines = subagentSpawnPromptGuidelines(["pi", "claude", "codex"]);
   assert.ok(

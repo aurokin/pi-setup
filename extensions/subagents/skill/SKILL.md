@@ -1,21 +1,19 @@
 ---
 name: subagents
-description: How to delegate work to subagents — whether to delegate at all, which harness and model to pick, how to brief a child, and what to do with what it returns. Invoke before spawning a subagent, not only when the user asks for one by name.
+description: How to choose, brief, and manage a subagent after deciding to delegate. Invoke before spawning a subagent, not only when the user asks for one by name.
 ---
 
 # Subagents
 
 Each subagent is headless, has its own context window, cannot see the parent conversation, cannot ask the user, and cannot spawn subagents or workflows. Give every child a self-contained prompt with paths, constraints, and the expected report.
 
-## Delegate or not
+## Provider egress
 
-- Don't delegate what is faster in context: a typecheck, a lint, one test, reading a normal-sized file. The spawn costs more than the work.
-- Delegate concrete, bounded work that can run while you keep doing something useful. Keep work that is tightly coupled to your next step, urgent, or too hard to brief.
-- **When heavy reading feeds a judgment, split it.** Delegate the reading, keep the judgment. Shipping out the whole decision because part of it was expensive is the most common delegation mistake.
-- Match fan-out to payoff. A few well-briefed children beat a swarm, and every child has to earn its tokens.
-- **Never tiebreak on convenience.** Doing it yourself because you are already here is not a reason; neither is spawning because spawning is easy.
-- If the harness you need is unavailable, say so. Never silently do it solo and present the result as if the delegation happened.
-- **Egress**: {{egress-harnesses}}. Do not send credential-bearing or private content to a provider without the user's explicit agreement for that provider.
+Every child is provider egress: {{egress-harnesses}}.
+
+## Code review
+
+When Diffwarden is available, use it for diff-backed code review instead of assembling a subagent review panel.
 
 ## Choosing a harness
 

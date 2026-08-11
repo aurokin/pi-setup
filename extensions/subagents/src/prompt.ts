@@ -66,7 +66,7 @@ export function subagentSpawnPromptGuidelines(
   const onFit = alternatives.filter((name) => !NAMED_ONLY.has(name));
   const onRequest = alternatives.filter((name) => NAMED_ONLY.has(name));
   return [
-    "Use subagent_spawn to delegate self-contained tasks that can run in the background; give it a complete, standalone prompt.",
+    "When using subagent_spawn, give the child a complete, standalone prompt for a self-contained task.",
     onFit.length
       ? `Pick the subagent harness deliberately: pi unless you have a reason to prefer ${inSentence(onFit)} (e.g. the user asked for one, or the task suits that harness).`
       : "Subagents run on pi, in-process, inheriting this environment's tools and config.",
