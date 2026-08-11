@@ -304,10 +304,13 @@ test("the child environment loses the parent's own secrets", () => {
   // ProcessTransport merges its env over process.env, so a deleted key has to
   // be explicitly undefined to actually be dropped from the spawned droid.
   const env = droidChildEnv({
-    FIRECRAWL_API_KEY: "parent-only",
+    EXA_API_KEY: "exa-parent-only",
+    FIRECRAWL_API_KEY: "firecrawl-parent-only",
     FACTORY_API_KEY: "childs-own",
     PATH: "/usr/bin",
   }) as Record<string, string | undefined>;
+  assert.ok("EXA_API_KEY" in env);
+  assert.equal(env.EXA_API_KEY, undefined);
   assert.ok("FIRECRAWL_API_KEY" in env);
   assert.equal(env.FIRECRAWL_API_KEY, undefined);
   assert.equal(env.FACTORY_API_KEY, "childs-own");

@@ -1,7 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Effect } from "effect";
-import { crawlEffect, type CrawlClient } from "./index.ts";
+import { crawlEffect, type CrawlClient } from "./src/providers/firecrawl.ts";
+
+test("a failed remote crawl fails the effect and attempts cancellation", async () => {
+  const cancelledJobs: string[] = [];
+  const client: CrawlClient = {
+    startCrawl: async (url) => ({ id: "crawl-failed", url }),
+    getCrawlStatus: async (jobId) => ({
+      id: jobId,
+      status: "failed",
+      total: 1,
+      completed: 0,
+      data: [],
+    }),
+    cancelCrawl: async (jobId) => {
+      cancelledJobs.push(jobId);
+      return true;
+    },
+  };
+
+  await assert.rejects(
+    Effect.runPromise(crawlEffect(client, "https://example.com", { limit: 1 })),
+  );
+  assert.deepEqual(cancelledJobs, ["crawl-failed"]);
+});
 
 test("cancels the remote crawl when polling is interrupted", async () => {
   let pollingStarted!: () => void;

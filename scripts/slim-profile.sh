@@ -36,7 +36,7 @@ EXTENSIONS=(
 # Deliberately absent, and why:
 #   workflows, subagents        orchestration a weak model cannot supervise
 #   codex-compaction            codex-only, inert against a local endpoint
-#   firecrawl-search, summaries need credentials this profile does not have
+#   web-tools, summaries       need credentials this profile does not have
 #   loop, sleep                 unattended turns
 #   background-terminals        process management
 # Skills are absent entirely: their descriptions cost context on every turn.

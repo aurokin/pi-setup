@@ -101,8 +101,9 @@ PI_CODING_AGENT_DIR=~/.pi/agent-slim pi
 It loads only the engineering rules, file search, `ask_user`, `goal`, and the
 extensions that render the theme. It loads no skills because skill descriptions
 cost context on every turn. Workflows, subagents, background terminals, sleep,
-loop, Firecrawl, and codex compaction are omitted; `scripts/slim-profile.sh` is
-the source of truth for the current list and the reason for each exclusion.
+loop, credentialed web tools, and codex compaction are omitted;
+`scripts/slim-profile.sh` is the source of truth for the current list and the
+reason for each exclusion.
 
 The profile is one `settings.json` rather than a directory of symlinks, because
 an agent directory with no `extensions/` of its own discovers nothing — so the
@@ -114,18 +115,42 @@ built-in catalog.
 Sessions and settings are separate from the main profile. The repo is shared,
 so editing an extension changes both.
 
-## Firecrawl
+## Web tools
 
-The search, scrape, and crawl tools require a Firecrawl API key. Follow [Firecrawl's Node.js getting-started guide](https://docs.firecrawl.dev/quickstarts/nodejs) to create one, then copy the example environment file:
+`extensions/web-tools` provides one public tool surface backed by Exa and
+Firecrawl. Exa handles search, scrape, and relevance-selected site exploration.
+Firecrawl can also handle search and scrape, and uniquely provides deterministic
+crawl and image search.
+
+Create either or both provider keys, then copy the environment template:
 
 ```sh
 cp .env.example ~/.pi/agent/.env
 ```
 
-Replace the placeholder in `~/.pi/agent/.env` with your API key.
+Set one or both empty values in the copied file: `EXA_API_KEY` for Exa and
+`FIRECRAWL_API_KEY` for Firecrawl. Leave an unused provider empty. Environment
+variables take precedence over the file, so a secret manager can inject them
+for one pi process without persisting them.
 
-If Firecrawl is not wanted, disable its extension in pi settings instead of
-adding the credential.
+Routing is optional. With no `~/.pi/agent/web-tools.json`, Exa wins whenever
+its key is present and only `search`, `scrape`, and `explore_site` are
+registered. If only the Firecrawl key exists, `search`, `scrape`, `crawl`, and
+`image_search` are registered through Firecrawl. No key means no web tools.
+
+For explicit routing, copy the safe example:
+
+```sh
+cp web-tools.example.json ~/.pi/agent/web-tools.json
+```
+
+An existing config is an allowlist. Omitted tools and tools set to
+`"disabled"` are not registered, so their schemas and guidance are absent from
+the model prompt. A configured route whose key is missing is also omitted and
+produces a startup warning; it never falls back to another provider. Run
+`/reload` after changing routes. See
+[`extensions/web-tools/README.md`](extensions/web-tools/README.md) for the
+capability matrix and full routing rules.
 
 ## fd and rg tools
 

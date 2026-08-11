@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "routes": {
+    "search": "exa",
+    "scrape": "exa",
+    "explore_site": "exa",
+    "crawl": "disabled",
+    "image_search": "disabled"
+  }
+}

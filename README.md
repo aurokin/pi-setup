@@ -8,7 +8,8 @@ Forked from [davis7dotsh/my-pi-setup](https://github.com/davis7dotsh/my-pi-setup
 
 Inherited from upstream:
 
-- firecrawl tools for searching and scraping
+- web tools for Exa-first search, scrape, site exploration, Firecrawl crawl,
+  and image search ([routing and capability matrix](extensions/web-tools/README.md))
 - a bottom bar with the info I want to see
 - background terminals + UI to manage them
   ([design](extensions/background-terminals/docs/design.md))

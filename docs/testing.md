@@ -43,6 +43,12 @@ with-secret factory -- node --test --experimental-strip-types e2e/subagents-droi
 with-secret cursor -- node --test --experimental-strip-types e2e/subagents-cursor.test.ts
 ```
 
+`e2e/web-tools-live.test.ts` has an additional
+`WEB_TOOLS_LIVE_E2E=1` gate because every runnable case spends provider credits.
+Inject `EXA_API_KEY` and `FIRECRAWL_API_KEY` with `pass-cli run`; do not print or
+persist them. The test uses one result per search and a Firecrawl crawl limit of
+one.
+
 Write-capable live subagent tests use scratch directories. Keep that property
 when adding a worker case: several backends bypass permission prompts, so
 pointing one at this checkout would let the test edit what it is testing.

@@ -14,7 +14,7 @@
 > `@effect/tsgo@0.19.0`, `typescript@7.0.2` (checked 2026-07-13, in `extensions/subagents`).
 > `npm run check` there passes clean — use it as the reference implementation.
 >
-> Audience: the agents migrating `firecrawl-search`, `ask-user`, `model-info`,
+> Audience: the agents migrating `web-tools`, `ask-user`, `model-info`,
 > `git-info`, `ui-customization`, and `copy-all`.
 
 ---
@@ -31,7 +31,7 @@ Reach for Effect only where you actually get something from it:
 - **Yes:** async work that needs typed errors, cancellation via the tool `AbortSignal`,
   timeouts, retries/polling, or a resource whose lifetime must outlive one call
   (child process, subscription) → child processes (`git-info`, `copy-all`), the
-  Firecrawl SDK calls (`firecrawl-search`), git/gh polling (`git-info`).
+  web-provider calls (`web-tools`), git/gh polling (`git-info`).
 - **No / barely:** pure TUI popups and rendering (`ask-user`, `ui-customization`),
   cross-extension channel plumbing, cost/token bookkeeping (`model-info`). These are
   synchronous or already-Promise UI code; wrapping them in Effect adds ceremony and no
@@ -228,7 +228,7 @@ the child-process / concurrency APIs live in `effect-v4-notes.md` — don't re-d
 
 ---
 
-## 4. Recipe: wrapping a Promise SDK (firecrawl-search)
+## 4. Recipe: wrapping a Promise web client (web-tools)
 
 The Firecrawl client is Promise-based. Wrap each call in `Effect.tryPromise` with a typed
 error; the callback receives an `AbortSignal` tied to fiber interruption — forward it to any

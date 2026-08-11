@@ -46,10 +46,11 @@ several installs could patch the same file concurrently.
    *Both extensions or neither:* they share the graph, so only the first loader
    pays and fixing one alone saves nothing.
 3. **Deferred vendor SDKs.** `@anthropic-ai/claude-agent-sdk` and `@cursor/sdk`
-   in `subagents`, and `firecrawl` in `firecrawl-search`, moved behind
+   in `subagents`, and `firecrawl` in `web-tools`, moved behind
    `await import()` at the point of use. Every one already sat inside an
    `Effect.tryPromise`, so an unavailable SDK still reads as a spawn or request
-   failure rather than a defect. −135 ms.
+   failure rather than a defect. The Exa adapter uses Node's built-in `fetch`,
+   so it adds no eager vendor module graph. −135 ms.
 4. **`NODE_COMPILE_CACHE`.** Node caches compiled bytecode between runs.
    Worth 71 ms before (3) and 41 ms after, because the two overlap — which is
    why it was landed last and measured rather than assumed. SETUP.md documents
