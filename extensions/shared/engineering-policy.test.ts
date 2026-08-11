@@ -2,12 +2,34 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  COMMENT_GUIDELINES,
+  COMMENT_GUIDELINES_BULLETS,
+  COMMENT_GUIDELINES_HEADER,
+  COMMUNICATION_STANDARDS,
+  COMMUNICATION_STANDARDS_BULLETS,
+  COMMUNICATION_STANDARDS_HEADER,
   ENGINEERING_POLICY,
   ENGINEERING_POLICY_BULLETS,
   ENGINEERING_POLICY_CHILD_NOTE,
   ENGINEERING_POLICY_HEADER,
+  KNOWN_PERFORMANCE_PITFALLS,
+  KNOWN_PERFORMANCE_PITFALLS_BULLETS,
+  KNOWN_PERFORMANCE_PITFALLS_HEADER,
   PI_AGENT_RULES,
   PI_WORKSPACE_BULLETS,
+  PORTABLE_AGENT_RULES,
+  SAFETY_RULES,
+  SAFETY_RULES_BULLETS,
+  SAFETY_RULES_HEADER,
+  SECOND_OPINIONS,
+  SECOND_OPINIONS_BULLETS,
+  SECOND_OPINIONS_HEADER,
+  TESTING_GUIDELINES,
+  TESTING_GUIDELINES_BULLETS,
+  TESTING_GUIDELINES_HEADER,
+  TYPESCRIPT_GUIDELINES,
+  TYPESCRIPT_GUIDELINES_BULLETS,
+  TYPESCRIPT_GUIDELINES_HEADER,
   withAgentRules,
 } from "./engineering-policy.ts";
 
@@ -40,18 +62,18 @@ test("with no project context there is nothing to sit in front of", () => {
 });
 
 test("the portable rules name no pi path, binary or variable", () => {
-  // ENGINEERING_POLICY is carried to other coding agents unchanged; anything
+  // PORTABLE_AGENT_RULES is carried to other coding agents unchanged; anything
   // that only means something inside pi belongs in PI_WORKSPACE.
   assert.doesNotMatch(
-    ENGINEERING_POLICY,
+    PORTABLE_AGENT_RULES,
     /PI_CODING_AGENT_DIR|PI_SESSION_FILE/,
   );
-  assert.doesNotMatch(ENGINEERING_POLICY, /\.pi\/agent/);
-  assert.doesNotMatch(ENGINEERING_POLICY, /\bpi\b/i);
+  assert.doesNotMatch(PORTABLE_AGENT_RULES, /\.pi\/agent/);
+  assert.doesNotMatch(PORTABLE_AGENT_RULES, /\bpi\b/i);
 });
 
 test("the workspace section carries the pi-specific rule", () => {
-  assert.ok(PI_AGENT_RULES.includes(ENGINEERING_POLICY));
+  assert.ok(PI_AGENT_RULES.includes(PORTABLE_AGENT_RULES));
   const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
   assert.ok(rule, "the scratch rule moved out of the portable bullets");
 });
@@ -67,17 +89,38 @@ test("does not re-append when another extension moved the section", () => {
   assert.equal(withAgentRules(reordered), reordered);
 });
 
-test("policy is its header, then nothing but bullets", () => {
-  // Nothing trails the bullets any more: the closing clause that told the
-  // model to override this section on conflict was removed deliberately, and
-  // a stray line reappearing at the end is the way that would come back.
-  const lines = ENGINEERING_POLICY.split("\n");
-  assert.equal(lines[0], ENGINEERING_POLICY_HEADER);
-  assert.equal(lines[1], "");
-  assert.ok(ENGINEERING_POLICY_BULLETS.length > 0);
-  for (const bullet of ENGINEERING_POLICY_BULLETS)
-    assert.match(bullet, /^- \S/);
-  assert.equal(lines.at(-1), ENGINEERING_POLICY_BULLETS.at(-1));
+test("portable sections are their header, then nothing but bullets", () => {
+  // Nothing trails the bullets: a stray closing clause could quietly weaken
+  // the rules above it.
+  for (const [section, header, bullets] of [
+    [ENGINEERING_POLICY, ENGINEERING_POLICY_HEADER, ENGINEERING_POLICY_BULLETS],
+    [SECOND_OPINIONS, SECOND_OPINIONS_HEADER, SECOND_OPINIONS_BULLETS],
+    [SAFETY_RULES, SAFETY_RULES_HEADER, SAFETY_RULES_BULLETS],
+    [TESTING_GUIDELINES, TESTING_GUIDELINES_HEADER, TESTING_GUIDELINES_BULLETS],
+    [
+      COMMUNICATION_STANDARDS,
+      COMMUNICATION_STANDARDS_HEADER,
+      COMMUNICATION_STANDARDS_BULLETS,
+    ],
+    [
+      TYPESCRIPT_GUIDELINES,
+      TYPESCRIPT_GUIDELINES_HEADER,
+      TYPESCRIPT_GUIDELINES_BULLETS,
+    ],
+    [COMMENT_GUIDELINES, COMMENT_GUIDELINES_HEADER, COMMENT_GUIDELINES_BULLETS],
+    [
+      KNOWN_PERFORMANCE_PITFALLS,
+      KNOWN_PERFORMANCE_PITFALLS_HEADER,
+      KNOWN_PERFORMANCE_PITFALLS_BULLETS,
+    ],
+  ] as const) {
+    const lines = section.split("\n");
+    assert.equal(lines[0], header);
+    assert.equal(lines[1], "");
+    assert.ok(bullets.length > 0);
+    for (const bullet of bullets) assert.match(bullet, /^- \S/);
+    assert.equal(lines.at(-1), bullets.at(-1));
+  }
 });
 
 test("says nothing the tool schema already conveys", () => {
@@ -89,81 +132,81 @@ test("says nothing the tool schema already conveys", () => {
   assert.ok(!ENGINEERING_POLICY.includes("ask_user"));
 });
 
+test("second-opinion advice lives in one reviewable section", () => {
+  assert.doesNotMatch(ENGINEERING_POLICY, /second opinion/i);
+  assert.equal(
+    new Set(SECOND_OPINIONS_BULLETS).size,
+    SECOND_OPINIONS_BULLETS.length,
+  );
+  assert.ok(
+    SECOND_OPINIONS_BULLETS.includes(
+      "- Report the assumption most likely to be wrong.",
+    ),
+  );
+});
+
 test("the child note refuses an empty result", () => {
   assert.match(ENGINEERING_POLICY_CHILD_NOTE, /found nothing/);
   assert.match(ENGINEERING_POLICY_CHILD_NOTE, /name what you inspected/);
 });
 
-test("the destructive-git rule holds for a child that cannot ask", () => {
+test("the destructive-git rules hold for a child that cannot ask", () => {
   // Without its own fallback this rule inherits "state the assumption and
   // proceed" from the underspecified-request rule, and a headless subagent
   // reads a ban conditioned on asking as satisfied when asking is impossible.
-  const rule = ENGINEERING_POLICY_BULLETS.find((b) =>
-    b.includes("discard work"),
-  );
-  assert.ok(rule);
-  assert.match(rule, /asking is impossible/);
+  const rules = SAFETY_RULES_BULLETS.join("\n");
+  assert.match(rules, /cannot ask for permission/);
   for (const verb of [
     "revert",
     "stash",
-    "checkout",
     "reset",
     "clean",
     "force-push",
+    "check out",
   ])
-    assert.ok(rule.includes(verb), `missing ${verb}`);
+    assert.ok(rules.includes(verb), `missing ${verb}`);
 });
 
 test("scratch has a destination, and deliverables are carved out of it", () => {
-  // Rule 1 grants "writing your own report or output file is always in scope"
-  // without saying where, which lands the file in the user's repo. This rule is
-  // that grant's destination, so it has to name a root that always resolves and
-  // it has to exclude the file the user actually asked for.
-  const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
-  assert.ok(rule);
-  assert.match(rule, /PI_CODING_AGENT_DIR:-\$HOME\/\.pi\/agent/);
-  assert.match(rule, /not scratch/);
-  // Never a repo-relative path: that is the failure this rule exists to prevent.
-  assert.doesNotMatch(rule, /\.\/|\bdocs\/|\bplans\//);
+  const rules = PI_WORKSPACE_BULLETS.join("\n");
+  assert.match(rules, /PI_CODING_AGENT_DIR:-\$HOME\/\.pi\/agent/);
+  assert.match(rules, /deliverable, not scratch/);
+  // Never a repo-relative path: that is the failure these rules exist to prevent.
+  assert.doesNotMatch(rules, /\.\/|\bdocs\/|\bplans\//);
 });
 
 test("the scratch root survives being quoted", () => {
   // No shell tilde-expands inside double quotes, so a `~` fallback hands a
   // correctly-quoting model the literal string `~/.pi/agent` and `mkdir -p`
   // makes a directory named `~` in the working tree. $HOME expands either way.
-  const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
-  assert.ok(rule);
-  assert.doesNotMatch(rule, /:-~/);
+  const rules = PI_WORKSPACE_BULLETS.join("\n");
+  assert.doesNotMatch(rules, /:-~/);
 });
 
-test("the concision rule names the waste rather than asking for less", () => {
+test("the communication rules name specific waste instead of asking for less", () => {
   // Pi's base prompt already says "Be concise in your responses" and it does
   // not bite; a second copy would be dead weight under this file's own rule.
-  // What earns the line is naming the specific waste, so pin those.
-  assert.doesNotMatch(ENGINEERING_POLICY, /be concise/i);
-  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("packaging"));
-  assert.ok(rule);
-  for (const waste of ["preamble", "restating the request", "recap"])
-    assert.ok(rule.includes(waste), `missing ${waste}`);
+  assert.doesNotMatch(COMMUNICATION_STANDARDS, /be concise/i);
+  assert.match(COMMUNICATION_STANDARDS, /preamble/);
+  assert.match(COMMUNICATION_STANDARDS, /restate the user's request/);
 });
 
-test("brevity does not undercut the rules that require disclosure", () => {
-  // Read against each other, "say when you are guessing" and "name what you did
-  // not verify" are exactly the text a brevity rule tempts a model to drop.
-  const rule = ENGINEERING_POLICY_BULLETS.find((b) => b.includes("packaging"));
-  assert.ok(rule);
-  assert.match(rule, /rules above require you to say still gets said/);
-  assert.ok(
-    ENGINEERING_POLICY_BULLETS.indexOf(rule) ===
-      ENGINEERING_POLICY_BULLETS.length - 1,
-    "the carve-out says 'above', so this rule has to be last",
-  );
+test("the request-restatement rule closes the communication section", () => {
+  assert.match(COMMUNICATION_STANDARDS_BULLETS.at(-1) ?? "", /restate/);
+});
+
+test("the TypeScript guidelines preserve the supplied wording", () => {
+  assert.deepEqual(TYPESCRIPT_GUIDELINES_BULLETS, [
+    "- `any` is the enemy. Inferred types are our friend. Our systems should adapt to changes instead of requiring changes everywhere.",
+    "- If your TypeScript code looks like a Python developer wrote it, it is bad TypeScript.",
+    "- Avoid one-line functions that are just casting wrappers.",
+  ]);
 });
 
 test("the committed fragment matches the policy byte for byte", () => {
   // engineering-policy.md is what fleet-config-sync carries to other agents'
   // GLOBAL instruction files (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md) as a
-  // managed block. Canonical byte form: ENGINEERING_POLICY plus one trailing
+  // managed block. Canonical byte form: PORTABLE_AGENT_RULES plus one trailing
   // newline — the downstream comparisons (intent diff, block conflict
   // detection) all assume exactly this form, so a drifting fragment reads as
   // fleet-wide false drift. Regenerate with `pnpm render:policy`.
@@ -177,10 +220,10 @@ test("the committed fragment matches the policy byte for byte", () => {
     new URL("./engineering-policy.md", import.meta.url),
     "utf8",
   );
-  assert.equal(fragment, `${ENGINEERING_POLICY}\n`);
+  assert.equal(fragment, `${PORTABLE_AGENT_RULES}\n`);
 });
 
 test("the child note is not carried by the parent policy", () => {
-  assert.ok(!ENGINEERING_POLICY.includes(ENGINEERING_POLICY_CHILD_NOTE));
+  assert.ok(!PORTABLE_AGENT_RULES.includes(ENGINEERING_POLICY_CHILD_NOTE));
   assert.ok(ENGINEERING_POLICY_CHILD_NOTE.length > 0);
 });
