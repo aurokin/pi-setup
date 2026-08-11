@@ -36,6 +36,10 @@
  */
 
 import {
+  GLOBAL_INSTRUCTION_RULES,
+  PI_WORKSPACE,
+} from "../../extensions/shared/engineering-policy.ts";
+import {
   byteLength,
   CHARS_PER_TOKEN,
   estimateTokens,
@@ -272,6 +276,10 @@ pre.flush { border-top:none; padding:12px 0; background:none; }
           border:1px solid var(--line); border-radius:8px; color:var(--text);
           font-size:13px; }
 .note { color:var(--dim); font-size:12px; margin-top:6px; }
+.instruction-scope { display:flex; align-items:center; gap:10px; margin:18px 2px 7px;
+                     color:var(--accent); font-size:12px; font-weight:650;
+                     letter-spacing:.04em; text-transform:uppercase; }
+.instruction-scope::after { content:""; height:1px; background:var(--line); flex:1; }
 .hidden { display:none; }
 `;
 
@@ -313,20 +321,41 @@ function messageBlock(message: PromptMessage) {
 </details>`;
 }
 
+const GLOBAL_INSTRUCTION_HEADINGS = new Set(
+  splitSections(GLOBAL_INSTRUCTION_RULES).map((section) => section.heading),
+);
+const PI_ONLY_HEADINGS = new Set(
+  splitSections(PI_WORKSPACE).map((section) => section.heading),
+);
+
+function instructionScope(section: PromptSection) {
+  if (GLOBAL_INSTRUCTION_HEADINGS.has(section.heading))
+    return "Global instruction rules";
+  if (PI_ONLY_HEADINGS.has(section.heading)) return "Pi-only additions";
+  return undefined;
+}
+
 function sectionRows(sections: ReadonlyArray<PromptSection>) {
   const max = Math.max(1, ...sections.map((s) => s.bytes));
+  let previousScope: string | undefined;
   return (
     sections
-      .map(
-        (section) => `<details data-searchable="${escapeHtml(
+      .map((section) => {
+        const scope = instructionScope(section);
+        const divider =
+          scope && scope !== previousScope
+            ? `<div class="instruction-scope">${escapeHtml(scope)}</div>\n`
+            : "";
+        previousScope = scope;
+        return `${divider}<details data-searchable="${escapeHtml(
           `${section.heading} ${section.body}`.toLowerCase(),
         )}">
   <summary><span class="name">${escapeHtml(section.heading)}</span>
     <span class="meta">${formatBytes(section.bytes)} · ~${estimateTokens(section.body).toLocaleString()} tok</span>
   </summary>
   <pre>${escapeHtml(section.body)}</pre>
-</details>`,
-      )
+</details>`;
+      })
       .join("\n") +
     `<div class="note">Largest section: ${formatBytes(max)}.</div>`
   );

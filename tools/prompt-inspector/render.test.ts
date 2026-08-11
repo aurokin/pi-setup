@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PI_AGENT_RULES } from "../../extensions/shared/engineering-policy.ts";
 import {
   byteLength,
   escapeHtml,
@@ -190,6 +191,21 @@ test("the report includes the prompt, the totals, and every message", () => {
 
 test("the estimate is labelled as one", () => {
   assert.match(renderReport(payload, meta), /characters ÷ 4/);
+});
+
+test("the report shows the global and pi-only instruction boundary", () => {
+  const html = renderReport(
+    { messages: [{ role: "developer", content: PI_AGENT_RULES }] },
+    meta,
+  );
+  const global = html.indexOf("Global instruction rules");
+  const engineering = html.indexOf(">Engineering Rules<");
+  const orchestration = html.indexOf(">Orchestration<");
+  const piOnly = html.indexOf("Pi-only additions");
+  const workspace = html.indexOf(">Workspace<");
+  assert.ok(global >= 0 && global < engineering);
+  assert.ok(engineering < orchestration && orchestration < piOnly);
+  assert.ok(piOnly < workspace);
 });
 
 test("a wrapped block is one section, not spliced into the heading before it", () => {

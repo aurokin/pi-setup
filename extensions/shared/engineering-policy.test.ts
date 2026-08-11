@@ -15,12 +15,13 @@ import {
   KNOWN_PERFORMANCE_PITFALLS,
   KNOWN_PERFORMANCE_PITFALLS_BULLETS,
   KNOWN_PERFORMANCE_PITFALLS_HEADER,
+  GLOBAL_INSTRUCTION_RULES,
   ORCHESTRATION,
   ORCHESTRATION_BULLETS,
   ORCHESTRATION_HEADER,
   PI_AGENT_RULES,
+  PI_WORKSPACE,
   PI_WORKSPACE_BULLETS,
-  PORTABLE_AGENT_RULES,
   SAFETY_RULES,
   SAFETY_RULES_BULLETS,
   SAFETY_RULES_HEADER,
@@ -64,21 +65,24 @@ test("with no project context there is nothing to sit in front of", () => {
   assert.ok(result.trimEnd().endsWith(PI_AGENT_RULES.trimEnd()));
 });
 
-test("the portable rules name no pi path, binary or variable", () => {
-  // PORTABLE_AGENT_RULES is carried to other coding agents unchanged; anything
-  // that only means something inside pi belongs in PI_WORKSPACE.
+test("the global instruction rules name no pi path, binary or variable", () => {
+  // GLOBAL_INSTRUCTION_RULES is carried to other coding agents unchanged;
+  // anything that only means something inside pi belongs in PI_WORKSPACE.
   assert.doesNotMatch(
-    PORTABLE_AGENT_RULES,
+    GLOBAL_INSTRUCTION_RULES,
     /PI_CODING_AGENT_DIR|PI_SESSION_FILE/,
   );
-  assert.doesNotMatch(PORTABLE_AGENT_RULES, /\.pi\/agent/);
-  assert.doesNotMatch(PORTABLE_AGENT_RULES, /\bpi\b/i);
+  assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /\.pi\/agent/);
+  assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /\bpi\b/i);
 });
 
-test("the workspace section carries the pi-specific rule", () => {
-  assert.ok(PI_AGENT_RULES.includes(PORTABLE_AGENT_RULES));
+test("pi adds only its workspace section to the global preamble", () => {
+  assert.equal(
+    PI_AGENT_RULES,
+    `${GLOBAL_INSTRUCTION_RULES}\n\n${PI_WORKSPACE}`,
+  );
   const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
-  assert.ok(rule, "the scratch rule moved out of the portable bullets");
+  assert.ok(rule, "the scratch rule moved into the global preamble");
 });
 
 test("appending is idempotent across repeated turns", () => {
@@ -92,7 +96,7 @@ test("does not re-append when another extension moved the section", () => {
   assert.equal(withAgentRules(reordered), reordered);
 });
 
-test("portable sections are their header, then nothing but bullets", () => {
+test("global instruction sections are their header, then nothing but bullets", () => {
   // Nothing trails the bullets: a stray closing clause could quietly weaken
   // the rules above it.
   for (const [section, header, bullets] of [
@@ -136,12 +140,31 @@ test("says nothing the tool schema already conveys", () => {
   assert.ok(!ENGINEERING_POLICY.includes("ask_user"));
 });
 
-test("orchestration advice is portable and keeps solo work as the default", () => {
+test("the global preamble carries all nine sections in order", () => {
+  assert.equal(
+    GLOBAL_INSTRUCTION_RULES,
+    [
+      ENGINEERING_POLICY,
+      ORCHESTRATION,
+      SECOND_OPINIONS,
+      SAFETY_RULES,
+      TESTING_GUIDELINES,
+      COMMUNICATION_STANDARDS,
+      TYPESCRIPT_GUIDELINES,
+      COMMENT_GUIDELINES,
+      KNOWN_PERFORMANCE_PITFALLS,
+    ].join("\n\n"),
+  );
+  assert.ok(!GLOBAL_INSTRUCTION_RULES.includes(PI_WORKSPACE));
+});
+
+test("orchestration advice is global and keeps solo work as the default", () => {
   assert.match(ORCHESTRATION_BULLETS[0] ?? "", /Work solo by default/);
   assert.match(ORCHESTRATION, /workflow tool is available/);
   assert.match(ORCHESTRATION, /non-overlapping ownership/);
   assert.match(ORCHESTRATION, /explicit approval for that provider/);
-  assert.doesNotMatch(PORTABLE_AGENT_RULES, /diffwarden/i);
+  assert.ok(GLOBAL_INSTRUCTION_RULES.includes(ORCHESTRATION));
+  assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /diffwarden/i);
 });
 
 test("verification effort follows the decisions it can affect", () => {
@@ -224,8 +247,8 @@ test("the TypeScript guidelines preserve the supplied wording", () => {
 test("the committed fragment matches the policy byte for byte", () => {
   // engineering-policy.md is what fleet-config-sync carries to other agents'
   // GLOBAL instruction files (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md) as a
-  // managed block. Canonical byte form: PORTABLE_AGENT_RULES plus one trailing
-  // newline — the downstream comparisons (intent diff, block conflict
+  // managed block. Canonical byte form: GLOBAL_INSTRUCTION_RULES plus one
+  // trailing newline — the downstream comparisons (intent diff, block conflict
   // detection) all assume exactly this form, so a drifting fragment reads as
   // fleet-wide false drift. Regenerate with `pnpm render:policy`.
   //
@@ -238,10 +261,10 @@ test("the committed fragment matches the policy byte for byte", () => {
     new URL("./engineering-policy.md", import.meta.url),
     "utf8",
   );
-  assert.equal(fragment, `${PORTABLE_AGENT_RULES}\n`);
+  assert.equal(fragment, `${GLOBAL_INSTRUCTION_RULES}\n`);
 });
 
-test("the child note is not carried by the parent policy", () => {
-  assert.ok(!PORTABLE_AGENT_RULES.includes(ENGINEERING_POLICY_CHILD_NOTE));
+test("the child note is not carried by the global preamble", () => {
+  assert.ok(!GLOBAL_INSTRUCTION_RULES.includes(ENGINEERING_POLICY_CHILD_NOTE));
   assert.ok(ENGINEERING_POLICY_CHILD_NOTE.length > 0);
 });

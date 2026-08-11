@@ -5,11 +5,11 @@
  * parent session's prompt, and subagent role prompts embed it so children
  * inherit the same rules. Keep it here so the two can never drift apart.
  *
- * The portable sections are deliberately harness-agnostic — they name no pi
- * binary, path, or environment variable — because the same rules are meant to
- * be carried to other coding agents unchanged. Anything that only makes sense
- * inside pi belongs in `PI_WORKSPACE` below. `PI_AGENT_RULES` combines the
- * portable sections with that workspace section and is what both consumers
+ * The global instruction sections are deliberately harness-agnostic — they
+ * name no pi binary, path, or environment variable — because the same preamble
+ * is distributed to other coding agents unchanged. Anything that only makes
+ * sense inside pi belongs in `PI_WORKSPACE` below. `PI_AGENT_RULES` combines
+ * the global preamble with that workspace section and is what both consumers
  * actually inject.
  *
  * Keep the set focused. Pi's base prompt already supplies the tool list,
@@ -159,8 +159,8 @@ export const KNOWN_PERFORMANCE_PITFALLS_BULLETS = [
  * Kept out of the parent text, where it would be dead weight on every turn.
  */
 /**
- * The pi-specific section, kept out of `PORTABLE_AGENT_RULES` so the sections
- * above stay portable to other coding agents.
+ * The pi-specific section, kept out of `GLOBAL_INSTRUCTION_RULES` so the
+ * global preamble stays portable to other coding agents.
  *
  * These rules provide a destination for agent-created reports and other
  * scratch files. Without one, a model may write them into the user's repo.
@@ -249,8 +249,8 @@ export const KNOWN_PERFORMANCE_PITFALLS = [
   ...KNOWN_PERFORMANCE_PITFALLS_BULLETS,
 ].join("\n");
 
-/** Portable sections, in the order they are injected. */
-export const PORTABLE_AGENT_RULES = [
+/** Global instruction preamble, in distribution order. */
+export const GLOBAL_INSTRUCTION_RULES = [
   ENGINEERING_POLICY,
   ORCHESTRATION,
   SECOND_OPINIONS,
@@ -262,8 +262,10 @@ export const PORTABLE_AGENT_RULES = [
   KNOWN_PERFORMANCE_PITFALLS,
 ].join("\n\n");
 
-/** All parent/child rules, with the pi-specific section last. */
-export const PI_AGENT_RULES = [PORTABLE_AGENT_RULES, PI_WORKSPACE].join("\n\n");
+/** Global preamble plus the pi-specific workspace section. */
+export const PI_AGENT_RULES = [GLOBAL_INSTRUCTION_RULES, PI_WORKSPACE].join(
+  "\n\n",
+);
 
 /** pi wraps `AGENTS.md` in this; the rules go in front of it. */
 const PROJECT_CONTEXT_OPEN = "<project_context>";
