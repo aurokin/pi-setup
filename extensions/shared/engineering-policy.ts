@@ -1,16 +1,15 @@
 /**
  * The behavioral layer added to every system prompt.
  *
- * Two consumers share this text: the `system-prompt` extension adds it to the
- * parent session's prompt, and subagent role prompts embed it so children
- * inherit the same rules. Keep it here so the two can never drift apart.
+ * The `system-prompt` extension adds this text to normal pi sessions. Pi
+ * subagents inherit that extension, then remove the parent-only sections that
+ * do not help a headless child. Keep both transforms here so they cannot drift.
  *
  * The global instruction sections are deliberately harness-agnostic — they
  * name no pi binary, path, or environment variable — because the same preamble
  * is distributed to other coding agents unchanged. Anything that only makes
  * sense inside pi belongs in `PI_WORKSPACE` below. `PI_AGENT_RULES` combines
- * the global preamble with that workspace section and is what both consumers
- * actually inject.
+ * the global preamble with that workspace section for normal Pi sessions.
  *
  * Keep the set focused. Pi's base prompt already supplies the tool list,
  * project context, skills, date, and cwd. Use as many statements as an idea
@@ -168,7 +167,9 @@ export const KNOWN_PERFORMANCE_PITFALLS_BULLETS = [
  * an `artifacts/<flattened-cwd>/<id>` sibling — but the rule never asks a model
  * to reproduce that flattening, because pi already hands it the flattened path
  * in `$PI_SESSION_FILE`. It names the root as well so an ephemeral session,
- * where that variable is unset, still has somewhere to go.
+ * where that variable is unset, still has somewhere to go. Sandboxed agents
+ * that cannot write outside the working tree may use a gitignored `.tmp/`
+ * directory there as a last resort.
  *
  * The root spells the fallback `$HOME`, not `~`, and that is load-bearing. No
  * shell tilde-expands inside double quotes, so `"${PI_CODING_AGENT_DIR:-~/...}"`
@@ -183,6 +184,7 @@ export const PI_WORKSPACE_BULLETS = [
   "- Keep agent-created scratch files out of the working tree. This includes plans, notes, and intermediate reports.",
   "- Store scratch files under `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/artifacts/` in a folder for the current session.",
   "- When `$PI_SESSION_FILE` is set, mirror its location under `sessions/` into the `artifacts/` directory.",
+  "- If you cannot write outside the working tree, use `.tmp/` as a fallback and add it to `.gitignore` if needed.",
   "- A file the user asked you to create is a deliverable, not scratch. Write it where the user requested.",
 ];
 
@@ -266,6 +268,34 @@ export const GLOBAL_INSTRUCTION_RULES = [
 export const PI_AGENT_RULES = [GLOBAL_INSTRUCTION_RULES, PI_WORKSPACE].join(
   "\n\n",
 );
+
+/**
+ * Sections useful to the parent but irrelevant to a headless subagent.
+ *
+ * Subagents cannot orchestrate or ask for another opinion, and their final
+ * message already has a child-specific contract. Workspace guidance remains
+ * useful only for workers, which can create scratch files and deliverables;
+ * read-only roles omit it with the other parent-only sections.
+ */
+const SUBAGENT_OMITTED_SECTIONS = [
+  ORCHESTRATION,
+  SECOND_OPINIONS,
+  COMMUNICATION_STANDARDS,
+] as const;
+
+/** Remove parent-only policy from a fully assembled pi child system prompt. */
+export function withoutSubagentPolicy(
+  systemPrompt: string,
+  options: { includeWorkspace?: boolean } = {},
+) {
+  const omittedSections = options.includeWorkspace
+    ? SUBAGENT_OMITTED_SECTIONS
+    : [...SUBAGENT_OMITTED_SECTIONS, PI_WORKSPACE];
+  return omittedSections
+    .reduce((prompt, section) => prompt.replaceAll(section, ""), systemPrompt)
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+}
 
 /** pi wraps `AGENTS.md` in this; the rules go in front of it. */
 const PROJECT_CONTEXT_OPEN = "<project_context>";

@@ -649,9 +649,9 @@ const makeClaudeSession = (
     };
 
     emit({ _tag: "MetaChanged", meta: state.meta });
-    // Claude Code runs its own harness prompt, so this child gets the
-    // engineering policy here or not at all.
-    submit(buildRolePrompt({ role, task: task.prompt, policy: "include" }));
+    // Claude Code supplies its own system prompt and global instructions.
+    // This initial message contributes only role framing and the assigned task.
+    submit(buildRolePrompt({ role, task: task.prompt }));
 
     return {
       meta: Effect.sync(() => state.meta),

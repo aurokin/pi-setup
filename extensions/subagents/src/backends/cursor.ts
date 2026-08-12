@@ -669,9 +669,9 @@ const makeCursorSession = (
 
     emit({ _tag: "MetaChanged", meta: state.meta });
     // Cursor runs its own harness prompt (there is no system-prompt option),
-    // so this child gets the role framing and engineering policy here or not
-    // at all — and only as a first user message, never as enforcement.
-    startRun(buildRolePrompt({ role, task: task.prompt, policy: "include" }));
+    // so this child gets the role framing and task only as a first user
+    // message, never as enforcement. Cursor supplies its global instructions.
+    startRun(buildRolePrompt({ role, task: task.prompt }));
 
     return {
       meta: Effect.sync(() => state.meta),

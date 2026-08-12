@@ -34,11 +34,130 @@ import type {
   TranscriptPart,
 } from "../domain.ts";
 import { SendError, SpawnError } from "../domain.ts";
+import { withoutSubagentPolicy } from "../../../shared/engineering-policy.ts";
 import { buildRolePrompt, roleProfile } from "../../../shared/roles.ts";
 import { createToolCallTimeoutGuard } from "../../../shared/tool-call-timeout.ts";
 import { toolPolicy } from "../tool-policy.ts";
 
 const CHILD_SHUTDOWN_TIMEOUT_MS = 5_000;
+
+type ChildPolicyOptions = { includeWorkspace?: boolean };
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function filterPolicyText(text: string, options: ChildPolicyOptions) {
+  return withoutSubagentPolicy(text, options);
+}
+
+/** Filter provider system text blocks without disturbing cache metadata. */
+function filterSystemBlocks(value: unknown, options: ChildPolicyOptions) {
+  if (typeof value === "string") return filterPolicyText(value, options);
+  if (!Array.isArray(value)) return value;
+
+  let changed = false;
+  const blocks = value.map((block) => {
+    if (!isRecord(block) || typeof block.text !== "string") return block;
+    const text = filterPolicyText(block.text, options);
+    if (text === block.text) return block;
+    changed = true;
+    return { ...block, text };
+  });
+  return changed ? blocks : value;
+}
+
+/** Google accepts either plain text or a Content object with text parts. */
+function filterSystemInstruction(value: unknown, options: ChildPolicyOptions) {
+  if (typeof value === "string") return filterPolicyText(value, options);
+  if (!isRecord(value)) return value;
+
+  if (typeof value.text === "string") {
+    const text = filterPolicyText(value.text, options);
+    return text === value.text ? value : { ...value, text };
+  }
+
+  const parts = filterSystemBlocks(value.parts, options);
+  return parts === value.parts ? value : { ...value, parts };
+}
+
+function filterRoleMessages(value: unknown, options: ChildPolicyOptions) {
+  if (!Array.isArray(value)) return value;
+
+  let changed = false;
+  const messages = value.map((message) => {
+    if (!isRecord(message)) return message;
+    if (
+      (message.role !== "system" && message.role !== "developer") ||
+      typeof message.content !== "string"
+    ) {
+      return message;
+    }
+    const content = filterPolicyText(message.content, options);
+    if (content === message.content) return message;
+    changed = true;
+    return { ...message, content };
+  });
+  return changed ? messages : value;
+}
+
+/** Remove parent-only policy from every provider payload shape emitted by Pi. */
+export function withoutSubagentPolicyFromPayload(
+  payload: unknown,
+  options: ChildPolicyOptions = {},
+) {
+  if (!isRecord(payload)) return payload;
+
+  let changed = false;
+  let filteredPayload = payload;
+  const replace = (key: string, value: unknown) => {
+    if (value === filteredPayload[key]) return;
+    filteredPayload = { ...filteredPayload, [key]: value };
+    changed = true;
+  };
+
+  replace("messages", filterRoleMessages(payload.messages, options));
+  replace("input", filterRoleMessages(payload.input, options));
+
+  if (typeof payload.instructions === "string") {
+    replace("instructions", filterPolicyText(payload.instructions, options));
+  }
+  replace(
+    "systemInstruction",
+    filterSystemInstruction(payload.systemInstruction, options),
+  );
+  replace("system", filterSystemBlocks(payload.system, options));
+
+  // Google SDK payloads keep generation settings, including the system prompt,
+  // inside config rather than at the top level.
+  if (isRecord(payload.config)) {
+    const systemInstruction = filterSystemInstruction(
+      payload.config.systemInstruction,
+      options,
+    );
+    if (systemInstruction !== payload.config.systemInstruction) {
+      replace("config", { ...payload.config, systemInstruction });
+    }
+  }
+
+  // The pi-messages transport sends the unspecialized context as a nested value.
+  if (
+    isRecord(payload.context) &&
+    typeof payload.context.systemPrompt === "string"
+  ) {
+    const systemPrompt = filterPolicyText(
+      payload.context.systemPrompt,
+      options,
+    );
+    if (systemPrompt !== payload.context.systemPrompt) {
+      replace("context", { ...payload.context, systemPrompt });
+    }
+  }
+
+  return changed ? filteredPayload : payload;
+}
 
 // --- Model + effort resolution -----------------------------------------------
 
@@ -86,12 +205,39 @@ function resolvePiModel(
 // --- Child session helpers (ported from v1 shared/child-session.ts) -----------
 
 /** Load normal global/package resources and trust-gated project resources. */
-async function createChildResources(cwd: string, projectTrusted: boolean) {
+async function createChildResources(
+  cwd: string,
+  projectTrusted: boolean,
+  childPolicy: { enabled: boolean; includeWorkspace: boolean },
+) {
   const agentDir = getAgentDir();
   const settingsManager = SettingsManager.create(cwd, agentDir, {
     projectTrusted,
   });
-  const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager });
+  const loader = new DefaultResourceLoader({
+    cwd,
+    agentDir,
+    settingsManager,
+    // Inline handlers load after discovered extensions. Filtering the final
+    // provider payload guarantees that even a later before_agent_start handler
+    // cannot restore parent-only policy. Everything else in Pi's assembled
+    // prompt, including project context, is preserved.
+    extensionFactories: childPolicy.enabled
+      ? [
+          {
+            name: "subagent-policy",
+            hidden: true,
+            factory: (pi) => {
+              pi.on("before_provider_request", (event) =>
+                withoutSubagentPolicyFromPayload(event.payload, {
+                  includeWorkspace: childPolicy.includeWorkspace,
+                }),
+              );
+            },
+          },
+        ]
+      : [],
+  });
   await loader.reload();
   return { loader, settingsManager };
 }
@@ -295,6 +441,10 @@ const makePiSession = (
         const { loader, settingsManager } = await createChildResources(
           task.cwd,
           task.parent.projectTrusted,
+          {
+            enabled: task.origin !== "btw",
+            includeWorkspace: role.name === "worker",
+          },
         );
         const { session } = await createAgentSession({
           cwd: task.cwd,
@@ -534,10 +684,9 @@ const makePiSession = (
     ).pipe(Effect.ignore);
 
     emit({ _tag: "MetaChanged", meta: currentMeta() });
-    // A pi child loads this repo's extensions, so `system-prompt` has already
-    // put the engineering policy in its system prompt. Sending it again here
-    // would pay for the same text twice.
-    startRun(buildRolePrompt({ role, task: task.prompt, policy: "inherited" }));
+    // Pi supplies its normal system prompt and global/project instructions.
+    // This initial message contributes only role framing and the assigned task.
+    startRun(buildRolePrompt({ role, task: task.prompt }));
 
     return {
       meta: Effect.sync(currentMeta),

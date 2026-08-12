@@ -29,10 +29,7 @@
  * nothing outside this role should be written as though prose can provide one.
  */
 
-import {
-  PI_AGENT_RULES,
-  ENGINEERING_POLICY_CHILD_NOTE,
-} from "./engineering-policy.ts";
+import { ENGINEERING_POLICY_CHILD_NOTE } from "./engineering-policy.ts";
 
 /** Roles the model may choose, and the enum the spawn tool advertises. */
 export const ROLE_NAMES = [
@@ -170,32 +167,23 @@ export function roleProfile(name: RoleName): RoleProfile {
 }
 
 /**
- * Whether the child's system prompt already carries the engineering policy.
+ * Compose the extension-owned prompt for a headless child.
  *
- * A pi child loads this repo's extensions, so the `system-prompt` extension
- * appends the policy to its system prompt before it reads a word of the task.
- * Prepending a second copy would spend tokens to say the same thing twice.
- * Claude Code and Codex children run their own harness prompts and get it here.
- */
-export type PolicyPlacement = "include" | "inherited";
-
-/**
- * Compose everything a headless child is told, in one string.
- *
- * The role framing leads, the shared rules follow, then the task. The child
- * note rides along because this is the only path by which a child learns that
- * its final message is the entire deliverable.
+ * Every harness already supplies its own system prompt and global instruction
+ * files. This message adds only the selected role, the child-specific final
+ * response contract, and the caller's task. Markdown rules make those three
+ * instruction layers visibly separate instead of one continuous block.
  */
 export function buildRolePrompt(options: {
   role: RoleProfile;
   task: string;
-  policy: PolicyPlacement;
 }): string {
   const task = options.task.trim() || options.role.defaultTask || "";
   return [
     options.role.systemPrompt,
-    ...(options.policy === "include" ? [PI_AGENT_RULES] : []),
+    "---",
     ENGINEERING_POLICY_CHILD_NOTE,
+    "---",
     "## Task",
     task,
   ].join("\n\n");

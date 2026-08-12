@@ -933,9 +933,9 @@ const makeCodexSession = (
       );
     }
     emit({ _tag: "MetaChanged", meta: state.meta });
-    // Codex runs its own harness prompt, so this child gets the engineering
-    // policy here or not at all.
-    startRun(buildRolePrompt({ role, task: task.prompt, policy: "include" }));
+    // Codex supplies its own system prompt and global instructions. This
+    // initial message contributes only role framing and the assigned task.
+    startRun(buildRolePrompt({ role, task: task.prompt }));
 
     return {
       meta: Effect.sync(() => state.meta),

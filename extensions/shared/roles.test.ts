@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  ENGINEERING_POLICY,
+  COMMUNICATION_STANDARDS,
   ENGINEERING_POLICY_CHILD_NOTE,
+  ORCHESTRATION,
+  PI_WORKSPACE,
+  SECOND_OPINIONS,
 } from "./engineering-policy.ts";
 import {
   INTERNAL_ROLE_NAMES,
@@ -87,44 +90,46 @@ test("only the roles meant to run bare carry a default task", () => {
   assert.ok(duck?.defaultTask);
 });
 
-test("the built prompt leads with the role and ends with the task", () => {
+test("the built prompt separates the role, child contract, and task", () => {
   assert.ok(reader);
   const prompt = buildRolePrompt({
     role: reader,
     task: "Find the retry logic.",
-    policy: "include",
   });
-  assert.ok(prompt.startsWith(reader.systemPrompt));
-  assert.ok(prompt.trimEnd().endsWith("Find the retry logic."));
+  assert.equal(
+    prompt,
+    [
+      reader.systemPrompt,
+      "---",
+      ENGINEERING_POLICY_CHILD_NOTE,
+      "---",
+      "## Task",
+      "Find the retry logic.",
+    ].join("\n\n"),
+  );
 });
 
 test("a child always learns its final message is the deliverable", () => {
   for (const role of ROLE_PROFILES.values())
-    for (const policy of ["include", "inherited"] as const)
-      assert.ok(
-        buildRolePrompt({ role, task: "x", policy }).includes(
-          ENGINEERING_POLICY_CHILD_NOTE,
-        ),
-        `${role.name}/${policy}`,
-      );
+    assert.ok(
+      buildRolePrompt({ role, task: "x" }).includes(
+        ENGINEERING_POLICY_CHILD_NOTE,
+      ),
+      role.name,
+    );
 });
 
-test("the policy is sent once, not twice", () => {
+test("role prompts do not repeat global instruction sections", () => {
   assert.ok(reader);
-  const included = buildRolePrompt({
-    role: reader,
-    task: "x",
-    policy: "include",
-  });
-  const inherited = buildRolePrompt({
-    role: reader,
-    task: "x",
-    policy: "inherited",
-  });
-  assert.ok(included.includes(ENGINEERING_POLICY));
-  // A pi child already has it in its system prompt via the system-prompt
-  // extension; repeating it here would pay for the same text twice.
-  assert.ok(!inherited.includes(ENGINEERING_POLICY));
+  const prompt = buildRolePrompt({ role: reader, task: "x" });
+  for (const section of [
+    ORCHESTRATION,
+    SECOND_OPINIONS,
+    COMMUNICATION_STANDARDS,
+    PI_WORKSPACE,
+  ]) {
+    assert.ok(!prompt.includes(section), section.split("\n", 1)[0]);
+  }
 });
 
 test("an empty task falls back to the role's default", () => {
@@ -132,7 +137,6 @@ test("an empty task falls back to the role's default", () => {
   const prompt = buildRolePrompt({
     role: duck,
     task: "   ",
-    policy: "include",
   });
   assert.ok(duck.defaultTask);
   assert.ok(prompt.includes(duck.defaultTask));

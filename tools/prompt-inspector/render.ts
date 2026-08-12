@@ -408,9 +408,9 @@ function entryList(
  *
  * None of this rides on the turn being captured — a child gets its own request
  * — so it appears nowhere else in this report, and there is no other place to
- * read it side by side. Rendered with `policy: "include"`, the shape a Claude
- * Code or Codex child receives; a pi child inherits the same rules from the
- * `system-prompt` extension instead and so sees them once, not twice.
+ * read it side by side. This is the same extension-owned initial message on
+ * every harness: role framing, the child-specific response contract, and task.
+ * Each harness supplies its own system prompt and global instruction files.
  */
 export function readRolePrompts(): PromptTool[] {
   const internal = new Set<string>(INTERNAL_ROLE_NAMES);
@@ -418,7 +418,6 @@ export function readRolePrompts(): PromptTool[] {
     const text = buildRolePrompt({
       role,
       task: "«the caller's task goes here»",
-      policy: "include",
     });
     return {
       name: internal.has(role.name) ? `${role.name} (internal)` : role.name,

@@ -352,12 +352,12 @@ test("every subagent role prompt is rendered, internal ones marked", () => {
     names.includes("side (internal)"),
     "side is spawnable only by us, and the page should say so",
   );
-  // The assembled prompt, not just the role's own framing: the shared rules
-  // and the child note are what a child actually reads.
+  // The assembled extension-owned prompt: global instructions come from the
+  // selected harness, while role framing and the child contract are ours.
   const duck = roles.find((role) => role.name === "rubber-duck")!;
   assert.match(duck.text, /rubber duck/);
-  assert.match(duck.text, /## Engineering Rules/);
-  assert.match(duck.text, /## Task/);
+  assert.doesNotMatch(duck.text, /## Engineering Rules/);
+  assert.match(duck.text, /\n\n---\n\n.*\n\n---\n\n## Task/s);
 
   const html = renderReport({ messages: [] }, meta);
   assert.match(html, /Subagent role prompts/);

@@ -35,6 +35,7 @@ import {
   TYPESCRIPT_GUIDELINES_BULLETS,
   TYPESCRIPT_GUIDELINES_HEADER,
   withAgentRules,
+  withoutSubagentPolicy,
 } from "./engineering-policy.ts";
 
 test("adds the rules to a prompt that lacks them", () => {
@@ -208,11 +209,13 @@ test("the destructive-git rules hold for a child that cannot ask", () => {
     assert.ok(rules.includes(verb), `missing ${verb}`);
 });
 
-test("scratch has a destination, and deliverables are carved out of it", () => {
+test("scratch has a destination, a sandbox fallback, and a deliverable carveout", () => {
   const rules = PI_WORKSPACE_BULLETS.join("\n");
   assert.match(rules, /PI_CODING_AGENT_DIR:-\$HOME\/\.pi\/agent/);
+  assert.match(rules, /cannot write outside the working tree.*`\.tmp\/`/);
+  assert.match(rules, /add it to `\.gitignore` if needed/);
   assert.match(rules, /deliverable, not scratch/);
-  // Never a repo-relative path: that is the failure these rules exist to prevent.
+  // The only repo-relative path is the explicit sandbox fallback.
   assert.doesNotMatch(rules, /\.\/|\bdocs\/|\bplans\//);
 });
 
@@ -267,4 +270,67 @@ test("the committed fragment matches the policy byte for byte", () => {
 test("the child note is not carried by the global preamble", () => {
   assert.ok(!GLOBAL_INSTRUCTION_RULES.includes(ENGINEERING_POLICY_CHILD_NOTE));
   assert.ok(ENGINEERING_POLICY_CHILD_NOTE.length > 0);
+});
+
+test("read-only pi subagents omit parent-only policy from their assembled prompt", () => {
+  const fullPrompt = withAgentRules(
+    "You are pi.\n\n<project_context>\nRepo rules.\n</project_context>",
+  );
+  const childPrompt = withoutSubagentPolicy(fullPrompt);
+
+  for (const omitted of [
+    ORCHESTRATION,
+    SECOND_OPINIONS,
+    COMMUNICATION_STANDARDS,
+    PI_WORKSPACE,
+  ]) {
+    assert.ok(fullPrompt.includes(omitted));
+    assert.ok(!childPrompt.includes(omitted), omitted.split("\n", 1)[0]);
+  }
+  for (const retained of [
+    ENGINEERING_POLICY,
+    SAFETY_RULES,
+    TESTING_GUIDELINES,
+    TYPESCRIPT_GUIDELINES,
+    COMMENT_GUIDELINES,
+    KNOWN_PERFORMANCE_PITFALLS,
+  ]) {
+    assert.ok(childPrompt.includes(retained), retained.split("\n", 1)[0]);
+  }
+  assert.match(childPrompt, /<project_context>\nRepo rules\./);
+  assert.doesNotMatch(childPrompt, /\n{3,}/);
+});
+
+test("worker pi subagents retain workspace but omit other parent policy", () => {
+  const fullPrompt = withAgentRules("You are pi.");
+  const childPrompt = withoutSubagentPolicy(fullPrompt, {
+    includeWorkspace: true,
+  });
+
+  assert.ok(childPrompt.includes(PI_WORKSPACE));
+  for (const omitted of [
+    ORCHESTRATION,
+    SECOND_OPINIONS,
+    COMMUNICATION_STANDARDS,
+  ]) {
+    assert.ok(!childPrompt.includes(omitted), omitted.split("\n", 1)[0]);
+  }
+});
+
+test("subagent policy removal removes duplicate project-context copies", () => {
+  const duplicated = [
+    "You are pi.",
+    ORCHESTRATION,
+    `<project_context>\n${ORCHESTRATION}\n</project_context>`,
+  ].join("\n\n");
+  const childPrompt = withoutSubagentPolicy(duplicated);
+
+  assert.ok(!childPrompt.includes(ORCHESTRATION));
+  assert.equal(childPrompt.match(/<project_context>/g)?.length, 1);
+});
+
+test("subagent policy removal is safe before the global policy is injected", () => {
+  const base =
+    "You are pi.\n\n<project_context>\nRepo rules.\n</project_context>";
+  assert.equal(withoutSubagentPolicy(base), base);
 });
