@@ -23,6 +23,10 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Type, type Static } from "typebox";
 import {
+  INLINE_GOAL_CHANNEL,
+  isInlineGoalRequest,
+} from "../shared/inline-commands.ts";
+import {
   applyModelUpdate,
   confirmClaim,
   createGoal,
@@ -139,6 +143,31 @@ export default function goalExtension(pi: ExtensionAPI) {
     invalidateAsyncWork();
     goal = latestGoal(ctx.sessionManager.getBranch());
   };
+
+  // Pi tracks event-bus subscriptions with the extension runtime, removing this
+  // listener only when the old runtime is invalidated after session shutdown.
+  // The replacement runtime registers its own listener during construction.
+  pi.events.on(INLINE_GOAL_CHANNEL, (value) => {
+    if (!isInlineGoalRequest(value)) return;
+    const now = Date.now();
+    // Event listeners outlive session replacement. Always reload the active
+    // branch so a cached goal from the previous session cannot make this look
+    // like a replacement or cause unrelated work to be interrupted.
+    load(value.ctx);
+    const created = createGoal(value.text, now);
+    if ("error" in created) {
+      value.error = created.error;
+      return;
+    }
+
+    const replaced = goal !== undefined;
+    if (replaced) interruptGoalRun(value.ctx);
+    persist(created);
+    value.handled = true;
+    value.replaced = replaced;
+    // The ordinary user prompt is already about to start. Unlike standalone
+    // /goal, do not queue a second continuation that would race that prompt.
+  });
 
   pi.on("session_shutdown", async () => invalidateAsyncWork());
 

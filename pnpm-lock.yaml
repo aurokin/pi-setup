@@ -130,6 +130,8 @@ importers:
 
   extensions/goal: {}
 
+  extensions/inline-commands: {}
+
   extensions/loop: {}
 
   extensions/model-info:

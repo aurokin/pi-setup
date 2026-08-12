@@ -3,6 +3,10 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  INLINE_GOAL_CHANNEL,
+  type InlineGoalRequest,
+} from "../shared/inline-commands.ts";
 import goalExtension from "./index.ts";
 import {
   applyModelUpdate,
@@ -45,6 +49,7 @@ function extensionHarness() {
   const entries: unknown[] = [];
   const messages: Array<{ message: any; options?: any }> = [];
   const notifications: string[] = [];
+  const eventHandlers = new Map<string, Set<(value: unknown) => void>>();
   let aborts = 0;
   let idle = true;
   let signal: AbortSignal | undefined;
@@ -69,6 +74,17 @@ function extensionHarness() {
     },
     registerTool(tool: any) {
       tools.set(tool.name, tool);
+    },
+    events: {
+      on(channel: string, handler: (value: unknown) => void) {
+        const listeners = eventHandlers.get(channel) ?? new Set();
+        listeners.add(handler);
+        eventHandlers.set(channel, listeners);
+        return () => listeners.delete(handler);
+      },
+      emit(channel: string, value: unknown) {
+        for (const handler of eventHandlers.get(channel) ?? []) handler(value);
+      },
     },
   } as unknown as ExtensionAPI;
   goalExtension(api);
@@ -102,6 +118,7 @@ function extensionHarness() {
     entries,
     messages,
     notifications,
+    eventHandlers,
     ctx,
     abortCount: () => aborts,
     setIdle(value: boolean) {
@@ -173,6 +190,71 @@ test("the tool description forbids speculative calls without an active goal", ()
   const source = readFileSync(join(import.meta.dirname, "index.ts"), "utf8");
   assert.match(source, /only when an active goal appears/);
   assert.match(source, /never call it to check whether a goal exists/);
+});
+
+test("an inline goal uses the draft as state without queuing a second turn", () => {
+  const harness = extensionHarness();
+  const request: InlineGoalRequest = {
+    text: "Use /skill:diffwarden and finish the review",
+    ctx: harness.ctx,
+    handled: false,
+  };
+  for (const handler of harness.eventHandlers.get(INLINE_GOAL_CHANNEL) ?? []) {
+    handler(request);
+  }
+
+  assert.equal(request.handled, true);
+  assert.equal(request.replaced, false);
+  assert.equal(harness.messages.length, 0, "inline goal queued a continuation");
+  assert.equal(latestGoal(harness.entries)?.text, request.text);
+});
+
+test("an inline goal reloads an empty replacement session before deciding", async () => {
+  const harness = extensionHarness();
+  const command = harness.commands.get("goal");
+  assert.ok(command);
+  await command.handler("old session goal", harness.ctx);
+  harness.entries.length = 0;
+
+  const request: InlineGoalRequest = {
+    text: "new session goal",
+    ctx: harness.ctx,
+    handled: false,
+  };
+  for (const handler of harness.eventHandlers.get(INLINE_GOAL_CHANNEL) ?? []) {
+    handler(request);
+  }
+
+  assert.equal(request.handled, true);
+  assert.equal(request.replaced, false);
+  assert.equal(latestGoal(harness.entries)?.text, "new session goal");
+});
+
+test("an inline goal replaces and interrupts active goal work", async () => {
+  const harness = extensionHarness();
+  const command = harness.commands.get("goal");
+  assert.ok(command);
+  await command.handler("old goal", harness.ctx);
+  for (const handler of harness.handlers.get("agent_start") ?? []) {
+    await handler({}, harness.ctx);
+  }
+  harness.setIdle(false);
+  harness.messages.length = 0;
+
+  const request: InlineGoalRequest = {
+    text: "replacement goal",
+    ctx: harness.ctx,
+    handled: false,
+  };
+  for (const handler of harness.eventHandlers.get(INLINE_GOAL_CHANNEL) ?? []) {
+    handler(request);
+  }
+
+  assert.equal(request.handled, true);
+  assert.equal(request.replaced, true);
+  assert.equal(harness.abortCount(), 1);
+  assert.equal(harness.messages.length, 0, "replacement queued a continuation");
+  assert.equal(latestGoal(harness.entries)?.text, "replacement goal");
 });
 
 test("setting and settling an active goal each trigger continuation", async () => {
