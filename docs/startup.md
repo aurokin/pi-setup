@@ -25,6 +25,11 @@ resolves them through one root install. Shared dependencies must also resolve to
 the same physical package. Check `node_modules/.modules.yaml`; `.npmrc` does not
 prove the active linker layout.
 
+`@aurokin/agent-policy` is the deliberate exception to repo-local ownership. It
+links from the sibling `~/code/agent-policy` checkout, whose prepare script
+builds the versioned package. The package owns only portable policy text; Pi
+prompt hooks, workspace guidance, fixups, and child filtering remain here.
+
 Extensions do not declare the pi SDK. They run inside pi and must use the same
 `@earendil-works/*` instances as the host process. The
 `~/.pi/agent/node_modules` link is load-bearing because pi starts module

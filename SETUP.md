@@ -1,18 +1,25 @@
 # Setup
 
-Clone this repo somewhere of your own and install its dependencies:
+Clone the shared agent policy beside this repo, then install both:
 
 ```sh
+git clone git@github.com:aurokin/agent-policy.git ~/code/agent-policy
 git clone git@github.com:aurokin/pi-setup.git ~/code/pi-setup
+cd ~/code/agent-policy
+pnpm install --frozen-lockfile
 cd ~/code/pi-setup
 pnpm install --frozen-lockfile
 ./scripts/setup-user-links.sh
 ```
 
-One install covers everything. Most directories under `extensions/` are their
-own package, and each is a pnpm workspace matched by `pnpm-workspace.yaml`, so
-`pnpm install` resolves them together and installs the shared dependencies once
-rather than once per extension.
+`pi-setup` links `@aurokin/agent-policy` from the sibling checkout. That repo
+owns the portable policy used by Pi, Codex, and Claude; Pi-specific prompt
+composition remains here.
+
+One Pi install covers every extension. Most directories under `extensions/`
+are their own package, and each is a pnpm workspace matched by
+`pnpm-workspace.yaml`, so `pnpm install` resolves them together and installs the
+shared dependencies once rather than once per extension.
 
 ## Linking it into pi
 

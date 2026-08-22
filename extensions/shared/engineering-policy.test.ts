@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   COMMENT_GUIDELINES,
@@ -245,26 +244,6 @@ test("the TypeScript guidelines preserve the supplied wording", () => {
     "- If your TypeScript code looks like a Python developer wrote it, it is bad TypeScript.",
     "- Avoid one-line functions that are just casting wrappers.",
   ]);
-});
-
-test("the committed fragment matches the policy byte for byte", () => {
-  // engineering-policy.md is what fleet-config-sync carries to other agents'
-  // GLOBAL instruction files (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md) as a
-  // managed block. Canonical byte form: GLOBAL_INSTRUCTION_RULES plus one
-  // trailing newline — the downstream comparisons (intent diff, block conflict
-  // detection) all assume exactly this form, so a drifting fragment reads as
-  // fleet-wide false drift. Regenerate with `pnpm render:policy`.
-  //
-  // Renaming the header is a fleet event, not a routine edit: beyond the
-  // running-session hazard noted on withAgentRules, the header is the dedupe
-  // key that keeps a placed copy in a pi-read context file from stacking —
-  // the fragment must never land in ~/AGENTS.md, ~/CLAUDE.md, or a project
-  // file, where it would suppress pi's own Workspace section.
-  const fragment = readFileSync(
-    new URL("./engineering-policy.md", import.meta.url),
-    "utf8",
-  );
-  assert.equal(fragment, `${GLOBAL_INSTRUCTION_RULES}\n`);
 });
 
 test("the child note is not carried by the global preamble", () => {
