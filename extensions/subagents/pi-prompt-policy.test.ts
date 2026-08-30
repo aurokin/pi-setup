@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   COMMUNICATION_STANDARDS,
+  DELEGATION,
   ENGINEERING_POLICY,
-  ORCHESTRATION,
   PI_WORKSPACE,
   SAFETY_RULES,
   SECOND_OPINIONS,
@@ -14,7 +14,7 @@ test("read-only pi child payloads omit parent-only system-prompt sections", () =
   const systemPrompt = [
     "You are pi.",
     ENGINEERING_POLICY,
-    ORCHESTRATION,
+    DELEGATION,
     SECOND_OPINIONS,
     SAFETY_RULES,
     COMMUNICATION_STANDARDS,
@@ -37,7 +37,7 @@ test("read-only pi child payloads omit parent-only system-prompt sections", () =
   assert.equal(typeof prompt, "string");
   if (typeof prompt !== "string") throw new Error("system prompt was not text");
   for (const omitted of [
-    ORCHESTRATION,
+    DELEGATION,
     SECOND_OPINIONS,
     COMMUNICATION_STANDARDS,
     PI_WORKSPACE,
@@ -59,7 +59,7 @@ test("worker pi child payloads retain workspace guidance", () => {
         role: "developer",
         content: [
           "Base",
-          ORCHESTRATION,
+          DELEGATION,
           SECOND_OPINIONS,
           COMMUNICATION_STANDARDS,
           PI_WORKSPACE,
@@ -74,7 +74,7 @@ test("worker pi child payloads retain workspace guidance", () => {
 
   assert.ok(prompt.includes(PI_WORKSPACE));
   for (const omitted of [
-    ORCHESTRATION,
+    DELEGATION,
     SECOND_OPINIONS,
     COMMUNICATION_STANDARDS,
   ]) {
@@ -84,14 +84,14 @@ test("worker pi child payloads retain workspace guidance", () => {
 
 test("pi child payload filtering supports system-role providers", () => {
   const payload = {
-    messages: [{ role: "system", content: `Base\n\n${ORCHESTRATION}` }],
+    messages: [{ role: "system", content: `Base\n\n${DELEGATION}` }],
   };
   const filtered = withoutSubagentPolicyFromPayload(payload) as typeof payload;
   assert.equal(filtered.messages[0]?.content, "Base");
 });
 
 test("pi child payload filtering supports provider-native system fields", () => {
-  const prompt = `Base\n\n${ORCHESTRATION}`;
+  const prompt = `Base\n\n${DELEGATION}`;
   const cases = [
     { instructions: prompt },
     { input: [{ role: "developer", content: prompt }] },
@@ -117,7 +117,7 @@ test("pi child payload filtering supports provider-native system fields", () => 
 
   for (const payload of cases) {
     const filtered = withoutSubagentPolicyFromPayload(payload);
-    assert.doesNotMatch(JSON.stringify(filtered), /## Orchestration/);
+    assert.doesNotMatch(JSON.stringify(filtered), /## Delegation/);
     assert.match(JSON.stringify(filtered), /Base/);
   }
 });

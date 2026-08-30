@@ -7,9 +7,9 @@
  */
 import {
   COMMUNICATION_STANDARDS,
+  DELEGATION,
   ENGINEERING_POLICY_HEADER,
   GLOBAL_INSTRUCTION_RULES,
-  ORCHESTRATION,
   SECOND_OPINIONS,
 } from "@aurokin/agent-policy";
 
@@ -49,7 +49,7 @@ export const PI_AGENT_RULES = [GLOBAL_INSTRUCTION_RULES, PI_WORKSPACE].join(
 
 /** Sections useful to the parent but irrelevant to a headless subagent. */
 const SUBAGENT_OMITTED_SECTIONS = [
-  ORCHESTRATION,
+  DELEGATION,
   SECOND_OPINIONS,
   COMMUNICATION_STANDARDS,
 ] as const;

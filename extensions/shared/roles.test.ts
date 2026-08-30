@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   COMMUNICATION_STANDARDS,
+  DELEGATION,
   ENGINEERING_POLICY_CHILD_NOTE,
-  ORCHESTRATION,
   PI_WORKSPACE,
   SECOND_OPINIONS,
 } from "./engineering-policy.ts";
@@ -123,7 +123,7 @@ test("role prompts do not repeat global instruction sections", () => {
   assert.ok(reader);
   const prompt = buildRolePrompt({ role: reader, task: "x" });
   for (const section of [
-    ORCHESTRATION,
+    DELEGATION,
     SECOND_OPINIONS,
     COMMUNICATION_STANDARDS,
     PI_WORKSPACE,

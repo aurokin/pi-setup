@@ -16,6 +16,11 @@ pnpm install --frozen-lockfile
 owns the portable policy used by Pi, Codex, and Claude; Pi-specific prompt
 composition remains here.
 
+The portable policy requires the `unslop` skill before every user-facing
+message. Pi discovers it at `~/.agents/skills/unslop/SKILL.md`. Install it
+before launching Pi. On managed machines, skills-manager owns this placement
+through the `cursor/plugins@unslop` global specification.
+
 One Pi install covers every extension. Most directories under `extensions/`
 are their own package, and each is a pnpm workspace matched by
 `pnpm-workspace.yaml`, so `pnpm install` resolves them together and installs the

@@ -7,6 +7,9 @@ import {
   COMMUNICATION_STANDARDS,
   COMMUNICATION_STANDARDS_BULLETS,
   COMMUNICATION_STANDARDS_HEADER,
+  DELEGATION,
+  DELEGATION_BULLETS,
+  DELEGATION_HEADER,
   ENGINEERING_POLICY,
   ENGINEERING_POLICY_BULLETS,
   ENGINEERING_POLICY_CHILD_NOTE,
@@ -15,9 +18,6 @@ import {
   KNOWN_PERFORMANCE_PITFALLS_BULLETS,
   KNOWN_PERFORMANCE_PITFALLS_HEADER,
   GLOBAL_INSTRUCTION_RULES,
-  ORCHESTRATION,
-  ORCHESTRATION_BULLETS,
-  ORCHESTRATION_HEADER,
   PI_AGENT_RULES,
   PI_WORKSPACE,
   PI_WORKSPACE_BULLETS,
@@ -101,7 +101,7 @@ test("global instruction sections are their header, then nothing but bullets", (
   // the rules above it.
   for (const [section, header, bullets] of [
     [ENGINEERING_POLICY, ENGINEERING_POLICY_HEADER, ENGINEERING_POLICY_BULLETS],
-    [ORCHESTRATION, ORCHESTRATION_HEADER, ORCHESTRATION_BULLETS],
+    [DELEGATION, DELEGATION_HEADER, DELEGATION_BULLETS],
     [SECOND_OPINIONS, SECOND_OPINIONS_HEADER, SECOND_OPINIONS_BULLETS],
     [SAFETY_RULES, SAFETY_RULES_HEADER, SAFETY_RULES_BULLETS],
     [TESTING_GUIDELINES, TESTING_GUIDELINES_HEADER, TESTING_GUIDELINES_BULLETS],
@@ -145,7 +145,7 @@ test("the global preamble carries all nine sections in order", () => {
     GLOBAL_INSTRUCTION_RULES,
     [
       ENGINEERING_POLICY,
-      ORCHESTRATION,
+      DELEGATION,
       SECOND_OPINIONS,
       SAFETY_RULES,
       TESTING_GUIDELINES,
@@ -158,12 +158,12 @@ test("the global preamble carries all nine sections in order", () => {
   assert.ok(!GLOBAL_INSTRUCTION_RULES.includes(PI_WORKSPACE));
 });
 
-test("orchestration advice is global and keeps solo work as the default", () => {
-  assert.match(ORCHESTRATION_BULLETS[0] ?? "", /Work solo by default/);
-  assert.match(ORCHESTRATION, /workflow tool is available/);
-  assert.match(ORCHESTRATION, /non-overlapping ownership/);
-  assert.match(ORCHESTRATION, /explicit approval for that provider/);
-  assert.ok(GLOBAL_INSTRUCTION_RULES.includes(ORCHESTRATION));
+test("delegation advice is global and keeps solo work as the default", () => {
+  assert.match(DELEGATION_BULLETS[0] ?? "", /Work solo by default/);
+  assert.match(DELEGATION, /workflow tool is available/);
+  assert.match(DELEGATION, /non-overlapping ownership/);
+  assert.match(DELEGATION, /explicit approval for that provider/);
+  assert.ok(GLOBAL_INSTRUCTION_RULES.includes(DELEGATION));
   assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /diffwarden/i);
 });
 
@@ -258,7 +258,7 @@ test("read-only pi subagents omit parent-only policy from their assembled prompt
   const childPrompt = withoutSubagentPolicy(fullPrompt);
 
   for (const omitted of [
-    ORCHESTRATION,
+    DELEGATION,
     SECOND_OPINIONS,
     COMMUNICATION_STANDARDS,
     PI_WORKSPACE,
@@ -288,7 +288,7 @@ test("worker pi subagents retain workspace but omit other parent policy", () => 
 
   assert.ok(childPrompt.includes(PI_WORKSPACE));
   for (const omitted of [
-    ORCHESTRATION,
+    DELEGATION,
     SECOND_OPINIONS,
     COMMUNICATION_STANDARDS,
   ]) {
@@ -299,12 +299,12 @@ test("worker pi subagents retain workspace but omit other parent policy", () => 
 test("subagent policy removal removes duplicate project-context copies", () => {
   const duplicated = [
     "You are pi.",
-    ORCHESTRATION,
-    `<project_context>\n${ORCHESTRATION}\n</project_context>`,
+    DELEGATION,
+    `<project_context>\n${DELEGATION}\n</project_context>`,
   ].join("\n\n");
   const childPrompt = withoutSubagentPolicy(duplicated);
 
-  assert.ok(!childPrompt.includes(ORCHESTRATION));
+  assert.ok(!childPrompt.includes(DELEGATION));
   assert.equal(childPrompt.match(/<project_context>/g)?.length, 1);
 });
 

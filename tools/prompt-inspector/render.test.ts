@@ -200,11 +200,11 @@ test("the report shows the global and pi-only instruction boundary", () => {
   );
   const global = html.indexOf("Global instruction rules");
   const engineering = html.indexOf(">Engineering Rules<");
-  const orchestration = html.indexOf(">Orchestration<");
+  const delegation = html.indexOf(">Delegation<");
   const piOnly = html.indexOf("Pi-only additions");
   const workspace = html.indexOf(">Workspace<");
   assert.ok(global >= 0 && global < engineering);
-  assert.ok(engineering < orchestration && orchestration < piOnly);
+  assert.ok(engineering < delegation && delegation < piOnly);
   assert.ok(piOnly < workspace);
 });
 
