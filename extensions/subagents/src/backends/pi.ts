@@ -205,7 +205,7 @@ function resolvePiModel(
 // --- Child session helpers (ported from v1 shared/child-session.ts) -----------
 
 /** Load normal global/package resources and trust-gated project resources. */
-async function createChildResources(
+export async function createChildResources(
   cwd: string,
   projectTrusted: boolean,
   childPolicy: { enabled: boolean; includeWorkspace: boolean },
@@ -261,7 +261,7 @@ function waitBounded(operation: Promise<unknown>, timeoutMs: number) {
 }
 
 /** Emit child session_shutdown (bounded), then dispose. Never throws. */
-async function shutdownAndDisposeChildSession(session: AgentSession) {
+export async function shutdownAndDisposeChildSession(session: AgentSession) {
   try {
     if (session.extensionRunner.hasHandlers("session_shutdown")) {
       await waitBounded(

@@ -178,13 +178,20 @@ export function buildRolePrompt(options: {
   role: RoleProfile;
   task: string;
 }): string {
+  return rolePromptContributions(options)
+    .map((part) => part.content)
+    .join("\n\n---\n\n");
+}
+
+/** The ordered pieces of the extension-owned child message. */
+export function rolePromptContributions(options: {
+  role: RoleProfile;
+  task: string;
+}) {
   const task = options.task.trim() || options.role.defaultTask || "";
   return [
-    options.role.systemPrompt,
-    "---",
-    ENGINEERING_POLICY_CHILD_NOTE,
-    "---",
-    "## Task",
-    task,
-  ].join("\n\n");
+    { kind: "role", content: options.role.systemPrompt },
+    { kind: "contract", content: ENGINEERING_POLICY_CHILD_NOTE },
+    { kind: "task", content: `## Task\n\n${task}` },
+  ] as const;
 }

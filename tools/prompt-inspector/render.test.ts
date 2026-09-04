@@ -10,11 +10,11 @@ import {
   instructionMessages,
   messageText,
   readMessages,
-  readRolePrompts,
   readTools,
   renderReport,
   splitSections,
 } from "./render.ts";
+import { extensionSurfaces } from "./surfaces.ts";
 import { ownerOf } from "./skill-bodies.ts";
 
 const meta = { capturedAt: "2026-07-27T00:00:00.000Z", promptText: "Hello" };
@@ -179,7 +179,7 @@ test("an empty prompt yields no sections instead of one empty one", () => {
 test("the report includes the prompt, the totals, and every message", () => {
   const html = renderReport(payload, meta);
   assert.match(html, /^<!doctype html>/);
-  assert.match(html, /What pi sends when you say/);
+  assert.match(html, /Prompt review/);
   assert.match(html, /Hello/);
   assert.match(html, /You are pi\./);
   assert.match(html, /Use them\./);
@@ -343,25 +343,44 @@ test("our own skills carry their body; other people's carry only the entry", () 
   assert.match(html, /read on demand, not sent on this turn/);
 });
 
-test("every subagent role prompt is rendered, internal ones marked", () => {
-  const roles = readRolePrompts();
-  const names = roles.map((role) => role.name);
-  for (const expected of ["reader", "worker", "advisor", "rubber-duck"])
-    assert.ok(names.includes(expected), `${expected} missing from ${names}`);
-  assert.ok(
-    names.includes("side (internal)"),
-    "side is spawnable only by us, and the page should say so",
+test("every role message is labelled as partial and internal roles are marked", () => {
+  const roles = extensionSurfaces("Example task");
+  for (const name of ["reader", "worker", "advisor", "rubber-duck", "side"])
+    assert.ok(roles.some((role) => role.dimensions[0]?.role === name));
+  assert.match(
+    roles.find((role) => role.id === "message-side")!.title,
+    /internal/,
   );
-  // The assembled extension-owned prompt: global instructions come from the
-  // selected harness, while role framing and the child contract are ours.
-  const duck = roles.find((role) => role.name === "rubber-duck")!;
-  assert.match(duck.text, /rubber duck/);
-  assert.doesNotMatch(duck.text, /## Engineering Rules/);
-  assert.match(duck.text, /\n\n---\n\n.*\n\n---\n\n## Task/s);
+  const duck = roles.find((role) => role.id === "message-rubber-duck")!;
+  assert.match(duck.extensionMessage!, /rubber duck/);
+  assert.doesNotMatch(duck.extensionMessage!, /## Engineering Rules/);
+  assert.match(duck.extensionMessage!, /\n\n---\n\n.*\n\n---\n\n## Task/s);
 
   const html = renderReport({ messages: [] }, meta);
-  assert.match(html, /Subagent role prompts/);
-  assert.match(html, /rubber duck/);
+  assert.match(html, /Agent prompt variants/);
+  assert.match(html, /Extension message only/);
+  assert.match(html, /Complete extension-owned message/);
+  assert.doesNotMatch(html, /Full prompt as the child receives it/);
+  assert.doesNotMatch(html, /shared rules/);
+});
+
+test("the raw payload retains non-text fields omitted from the reading view", () => {
+  const raw = {
+    ...payload,
+    messages: [
+      ...payload.messages,
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "call-1", function: { name: "read" } }],
+      },
+    ],
+    stream: true,
+    extra: { cache: "preserve me" },
+  };
+  const html = renderReport(raw, meta);
+  assert.ok(html.includes(escapeHtml(JSON.stringify(raw, null, 2))));
+  assert.match(html, /Captured request JSON, formatted/);
 });
 
 test("ownership follows the real path, not where the symlink sits", () => {

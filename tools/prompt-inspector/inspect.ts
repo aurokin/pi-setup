@@ -15,6 +15,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { readMessages, readSkills, renderReport } from "./render.ts";
+import { assemblePiSurfaces } from "./assemble.ts";
+import { extensionSurfaces } from "./surfaces.ts";
 import { readSkillBodies } from "./skill-bodies.ts";
 
 const args = process.argv.slice(2);
@@ -23,6 +25,7 @@ const prompt = args.filter((arg) => !arg.startsWith("--"))[0] ?? "Hello";
 
 const workspace = mkdtempSync(join(tmpdir(), "prompt-inspector-"));
 const payloadPath = join(workspace, "payload.json");
+const contextPath = join(workspace, "context.json");
 const reportPath =
   args.find((arg) => arg.startsWith("--out="))?.slice("--out=".length) ??
   join(process.cwd(), "prompt-report.html");
@@ -43,7 +46,11 @@ const child = spawn(
     prompt,
   ],
   {
-    env: { ...process.env, PROMPT_INSPECTOR_OUT: payloadPath },
+    env: {
+      ...process.env,
+      PROMPT_INSPECTOR_OUT: payloadPath,
+      PROMPT_INSPECTOR_CONTEXT_OUT: contextPath,
+    },
     stdio: ["ignore", "ignore", "inherit"],
   },
 );
@@ -57,10 +64,26 @@ const code: number = await new Promise((resolve) => {
 });
 
 let payload: unknown;
+let context: { cwd: string; projectTrusted: boolean } | undefined;
 try {
   payload = JSON.parse(readFileSync(payloadPath, "utf8"));
+  try {
+    const value: unknown = JSON.parse(readFileSync(contextPath, "utf8"));
+    if (
+      value &&
+      typeof value === "object" &&
+      "cwd" in value &&
+      typeof value.cwd === "string" &&
+      "projectTrusted" in value &&
+      typeof value.projectTrusted === "boolean"
+    ) {
+      context = { cwd: value.cwd, projectTrusted: value.projectTrusted };
+    }
+  } catch {
+    /* Parent capture remains useful without assembly metadata. */
+  }
   // The payload is the whole prompt — context files, every tool description.
-  // The report is the artifact; leaving a second copy of the same private
+  // The prompt report includes it; leaving a second copy of the same private
   // material in a temp directory after each run is not worth the convenience.
   rmSync(workspace, { recursive: true, force: true });
 } catch {
@@ -84,12 +107,27 @@ const locations = readSkills(instructionText)
   .map((skill) => skill.location)
   .filter((location): location is string => Boolean(location));
 
+const assembled = context
+  ? await assemblePiSurfaces({
+      ...context,
+      task: prompt,
+      parentPayload: payload,
+    })
+  : {
+      surfaces: [],
+      notes: [
+        "Pi child assembly unavailable: parent workspace/trust metadata was not captured.",
+      ],
+    };
+
 writeFileSync(
   reportPath,
   renderReport(payload, {
     capturedAt: new Date().toISOString(),
     promptText: prompt,
     source: "pi --print",
+    surfaces: [...assembled.surfaces, ...extensionSurfaces(prompt)],
+    reviewNotes: assembled.notes,
     skillBodies: readSkillBodies(locations, repoRoot),
   }),
 );

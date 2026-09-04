@@ -77,6 +77,19 @@ function cannedCompletion(streaming: boolean) {
 }
 
 export default async function (pi: ExtensionAPI) {
+  // Keep review metadata separate so the raw provider request stays unchanged.
+  pi.on("session_start", (_event, ctx) => {
+    const contextOut = process.env.PROMPT_INSPECTOR_CONTEXT_OUT;
+    if (contextOut) {
+      writeFileSync(
+        contextOut,
+        JSON.stringify({
+          cwd: ctx.cwd,
+          projectTrusted: ctx.isProjectTrusted(),
+        }),
+      );
+    }
+  });
   const server = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(chunk as Buffer);
