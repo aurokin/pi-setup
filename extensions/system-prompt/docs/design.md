@@ -36,16 +36,16 @@ Reasons:
 
 ## Implementation
 
-`@aurokin/agent-policy` owns the portable text. This repo depends on that
-package and keeps only Pi-specific composition in
-`extensions/shared/engineering-policy.ts`. Two Pi consumers share the result:
+`@aurokin/agent-policy` owns the policy text, including Pi's profile
+(`PI_PROFILE`). This repo depends on that package and keeps only Pi-specific
+composition in `extensions/shared/engineering-policy.ts`. Two Pi consumers share the result:
 
 1. This extension, appending it to the parent session prompt.
 2. Subagent role prompts, so managed children inherit the same rules.
 
-The package prevents the parent, child, Codex, and Claude policies from
-drifting apart. Pi's workspace section, insertion order, and child filtering
-remain local because they describe this harness rather than global behavior.
+The package keeps the parent and child policies in one place and shows each
+agent's profile side by side. Insertion order and child filtering remain local
+because they describe this harness rather than policy text.
 
 The append is idempotent because `before_agent_start` fires for every user
 prompt and extension results are chained. An unconditional append could stack

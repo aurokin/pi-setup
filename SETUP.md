@@ -13,8 +13,8 @@ pnpm install --frozen-lockfile
 ```
 
 `pi-setup` links `@aurokin/agent-policy` from the sibling checkout. That repo
-owns the portable policy used by Pi, Codex, and Claude; Pi-specific prompt
-composition remains here.
+owns the policy text for Pi, Codex, Claude, and Copilot, including Pi's
+profile; Pi prompt composition remains here.
 
 One Pi install covers every extension. Most directories under `extensions/`
 are their own package, and each is a pnpm workspace matched by

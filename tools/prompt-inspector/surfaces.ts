@@ -1,6 +1,6 @@
 /** Serializable review inputs. Each surface owns its fidelity and ordered content. */
 import {
-  GLOBAL_INSTRUCTION_RULES,
+  PI_PROFILE,
   PI_WORKSPACE,
   withoutSubagentPolicy,
 } from "../../extensions/shared/engineering-policy.ts";
@@ -75,7 +75,7 @@ export function roleContributions(role: RoleProfile, task: string) {
   }));
 }
 
-const globalSections = splitSections(GLOBAL_INSTRUCTION_RULES);
+const globalSections = splitSections(PI_PROFILE);
 
 /** Keep encounter order; headings alone cannot prove who authored a section. */
 export function instructionContributions(text: string, source: string) {
@@ -97,7 +97,7 @@ export function instructionContributions(text: string, source: string) {
       )
     ) {
       kind = "global";
-      label = "Global instructions";
+      label = "Agent policy";
     }
     return {
       kind,

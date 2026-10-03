@@ -5,7 +5,7 @@
  */
 
 import {
-  GLOBAL_INSTRUCTION_RULES,
+  PI_PROFILE,
   PI_WORKSPACE,
 } from "../../extensions/shared/engineering-policy.ts";
 import {
@@ -193,17 +193,16 @@ function messageBlock(message: PromptMessage) {
 </details>`;
 }
 
-const GLOBAL_INSTRUCTION_HEADINGS = new Set(
-  splitSections(GLOBAL_INSTRUCTION_RULES).map((section) => section.heading),
+const AGENT_POLICY_HEADINGS = new Set(
+  splitSections(PI_PROFILE).map((section) => section.heading),
 );
 const PI_ONLY_HEADINGS = new Set(
   splitSections(PI_WORKSPACE).map((section) => section.heading),
 );
 
 function instructionScope(section: PromptSection) {
-  if (GLOBAL_INSTRUCTION_HEADINGS.has(section.heading))
-    return "Global instruction rules";
   if (PI_ONLY_HEADINGS.has(section.heading)) return "Pi-only additions";
+  if (AGENT_POLICY_HEADINGS.has(section.heading)) return "Agent policy";
   return undefined;
 }
 

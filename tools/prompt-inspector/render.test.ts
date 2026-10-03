@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PI_AGENT_RULES } from "../../extensions/shared/engineering-policy.ts";
+import { PI_PROFILE } from "../../extensions/shared/engineering-policy.ts";
 import {
   byteLength,
   escapeHtml,
@@ -193,12 +193,12 @@ test("the estimate is labelled as one", () => {
   assert.match(renderReport(payload, meta), /characters ÷ 4/);
 });
 
-test("the report shows the global and pi-only instruction boundary", () => {
+test("the report shows the agent-policy and pi-only instruction boundary", () => {
   const html = renderReport(
-    { messages: [{ role: "developer", content: PI_AGENT_RULES }] },
+    { messages: [{ role: "developer", content: PI_PROFILE }] },
     meta,
   );
-  const global = html.indexOf("Global instruction rules");
+  const global = html.indexOf("Agent policy");
   const engineering = html.indexOf(">Engineering Rules<");
   const delegation = html.indexOf(">Delegation<");
   const piOnly = html.indexOf("Pi-only additions");

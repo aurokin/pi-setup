@@ -48,9 +48,10 @@ the child response contract and task. Extra startup messages follow the task.
 Tool schemas are a separate field, shown last. This is a reading order, not a
 claim that the provider concatenates tools after messages.
 
-Global policy sections are attributed by matching production content. Pi's
+Agent-policy sections are attributed by matching production `PI_PROFILE`
+content. Pi's
 `<project_context>` and `<available_skills>` blocks retain their boundaries.
-A context file can contain both global and project instructions; the inspector
+A context file can contain both agent-policy and project instructions; the inspector
 does not invent attribution for its contents. Other instruction text retains its
 headings under "Harness system prompt / other instructions".
 

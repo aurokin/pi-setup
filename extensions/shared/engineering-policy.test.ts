@@ -14,11 +14,13 @@ import {
   ENGINEERING_POLICY_BULLETS,
   ENGINEERING_POLICY_CHILD_NOTE,
   ENGINEERING_POLICY_HEADER,
+  CLAUDE_CODE_PROFILE,
+  CODEX_PROFILE,
+  COPILOT_PROFILE,
   KNOWN_PERFORMANCE_PITFALLS,
   KNOWN_PERFORMANCE_PITFALLS_BULLETS,
   KNOWN_PERFORMANCE_PITFALLS_HEADER,
-  GLOBAL_INSTRUCTION_RULES,
-  PI_AGENT_RULES,
+  PI_PROFILE,
   PI_WORKSPACE,
   PI_WORKSPACE_BULLETS,
   SAFETY_RULES,
@@ -40,7 +42,7 @@ import {
 test("adds the rules to a prompt that lacks them", () => {
   const result = withAgentRules("You are pi.");
   assert.ok(result.startsWith("You are pi."));
-  assert.ok(result.includes(PI_AGENT_RULES));
+  assert.ok(result.includes(PI_PROFILE));
 });
 
 test("the rules go in front of the project's own instructions", () => {
@@ -62,27 +64,24 @@ test("the rules go in front of the project's own instructions", () => {
 
 test("with no project context there is nothing to sit in front of", () => {
   const result = withAgentRules("You are pi.");
-  assert.ok(result.trimEnd().endsWith(PI_AGENT_RULES.trimEnd()));
+  assert.ok(result.trimEnd().endsWith(PI_PROFILE.trimEnd()));
 });
 
-test("the global instruction rules name no pi path, binary or variable", () => {
-  // GLOBAL_INSTRUCTION_RULES is carried to other coding agents unchanged;
-  // anything that only means something inside pi belongs in PI_WORKSPACE.
-  assert.doesNotMatch(
-    GLOBAL_INSTRUCTION_RULES,
-    /PI_CODING_AGENT_DIR|PI_SESSION_FILE/,
-  );
-  assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /\.pi\/agent/);
-  assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /\bpi\b/i);
+test("other agents' profiles name no pi path, binary or variable", () => {
+  // These profiles are carried to other coding agents unchanged; anything that
+  // only means something inside pi belongs in PI_WORKSPACE.
+  for (const profile of [CODEX_PROFILE, CLAUDE_CODE_PROFILE, COPILOT_PROFILE]) {
+    assert.doesNotMatch(profile, /PI_CODING_AGENT_DIR|PI_SESSION_FILE/);
+    assert.doesNotMatch(profile, /\.pi\/agent/);
+    assert.doesNotMatch(profile, /\bpi\b/i);
+  }
 });
 
-test("pi adds only its workspace section to the global preamble", () => {
-  assert.equal(
-    PI_AGENT_RULES,
-    `${GLOBAL_INSTRUCTION_RULES}\n\n${PI_WORKSPACE}`,
-  );
-  const rule = PI_WORKSPACE_BULLETS.find((b) => b.includes("scratch"));
-  assert.ok(rule, "the scratch rule moved into the global preamble");
+test("pi sessions get the Pi profile without opt-in sections", () => {
+  const result = withAgentRules("You are pi.");
+  assert.ok(result.includes(PI_WORKSPACE));
+  assert.ok(!result.includes(SECOND_OPINIONS));
+  assert.ok(!result.includes(KNOWN_PERFORMANCE_PITFALLS));
 });
 
 test("appending is idempotent across repeated turns", () => {
@@ -140,31 +139,13 @@ test("says nothing the tool schema already conveys", () => {
   assert.ok(!ENGINEERING_POLICY.includes("ask_user"));
 });
 
-test("the global preamble carries all nine sections in order", () => {
-  assert.equal(
-    GLOBAL_INSTRUCTION_RULES,
-    [
-      ENGINEERING_POLICY,
-      DELEGATION,
-      SECOND_OPINIONS,
-      SAFETY_RULES,
-      TESTING_GUIDELINES,
-      COMMUNICATION_STANDARDS,
-      TYPESCRIPT_GUIDELINES,
-      COMMENT_GUIDELINES,
-      KNOWN_PERFORMANCE_PITFALLS,
-    ].join("\n\n"),
-  );
-  assert.ok(!GLOBAL_INSTRUCTION_RULES.includes(PI_WORKSPACE));
-});
-
 test("delegation advice is global and keeps solo work as the default", () => {
   assert.match(DELEGATION_BULLETS[0] ?? "", /Work solo by default/);
   assert.match(DELEGATION, /workflow tool is available/);
   assert.match(DELEGATION, /non-overlapping ownership/);
   assert.match(DELEGATION, /explicit approval for that provider/);
-  assert.ok(GLOBAL_INSTRUCTION_RULES.includes(DELEGATION));
-  assert.doesNotMatch(GLOBAL_INSTRUCTION_RULES, /diffwarden/i);
+  assert.ok(PI_PROFILE.includes(DELEGATION));
+  assert.doesNotMatch(PI_PROFILE, /diffwarden/i);
 });
 
 test("verification effort follows the decisions it can affect", () => {
@@ -246,8 +227,8 @@ test("the TypeScript guidelines preserve the supplied wording", () => {
   ]);
 });
 
-test("the child note is not carried by the global preamble", () => {
-  assert.ok(!GLOBAL_INSTRUCTION_RULES.includes(ENGINEERING_POLICY_CHILD_NOTE));
+test("the child note is not carried by the Pi profile", () => {
+  assert.ok(!PI_PROFILE.includes(ENGINEERING_POLICY_CHILD_NOTE));
   assert.ok(ENGINEERING_POLICY_CHILD_NOTE.length > 0);
 });
 
@@ -257,12 +238,7 @@ test("read-only pi subagents omit parent-only policy from their assembled prompt
   );
   const childPrompt = withoutSubagentPolicy(fullPrompt);
 
-  for (const omitted of [
-    DELEGATION,
-    SECOND_OPINIONS,
-    COMMUNICATION_STANDARDS,
-    PI_WORKSPACE,
-  ]) {
+  for (const omitted of [DELEGATION, COMMUNICATION_STANDARDS, PI_WORKSPACE]) {
     assert.ok(fullPrompt.includes(omitted));
     assert.ok(!childPrompt.includes(omitted), omitted.split("\n", 1)[0]);
   }
@@ -272,7 +248,6 @@ test("read-only pi subagents omit parent-only policy from their assembled prompt
     TESTING_GUIDELINES,
     TYPESCRIPT_GUIDELINES,
     COMMENT_GUIDELINES,
-    KNOWN_PERFORMANCE_PITFALLS,
   ]) {
     assert.ok(childPrompt.includes(retained), retained.split("\n", 1)[0]);
   }

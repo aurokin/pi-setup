@@ -4,7 +4,7 @@ import {
   COMMUNICATION_STANDARDS,
   DELEGATION,
   SECOND_OPINIONS,
-  PI_AGENT_RULES,
+  PI_PROFILE,
   PI_WORKSPACE,
 } from "../../extensions/shared/engineering-policy.ts";
 import {
@@ -25,7 +25,7 @@ const task = "Inspect this example";
 const assembly: PiPromptAssembly = {
   systemPrompt: [
     "You are Pi.",
-    PI_AGENT_RULES,
+    PI_PROFILE,
     "<project_context>\n# AGENTS.md\nProject instruction\n</project_context>",
     "<available_skills>\n<skill><name>example</name></skill>\n</available_skills>",
   ].join("\n\n"),
@@ -116,12 +116,7 @@ test("Pi policy filtering keeps worker workspace guidance and /btw parent policy
     assert.match(text, /<available_skills>/);
   }
   const side = instructionText(pi("side"));
-  for (const retained of [
-    DELEGATION,
-    SECOND_OPINIONS,
-    COMMUNICATION_STANDARDS,
-    PI_WORKSPACE,
-  ])
+  for (const retained of [DELEGATION, COMMUNICATION_STANDARDS, PI_WORKSPACE])
     assert.ok(side.includes(retained));
 });
 
