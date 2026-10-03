@@ -3,7 +3,9 @@
 # are skipped.
 packages:
   - "extensions/*"
+# Pi runs without these install scripts; msgpackr-extract has a pure-JS
+# fallback. Declining them explicitly keeps pnpm 12 from failing the install.
 allowBuilds:
-  '@google/genai': set this to true or false
-  msgpackr-extract: set this to true or false
-  protobufjs: set this to true or false
+  '@google/genai': false
+  msgpackr-extract: false
+  protobufjs: false
