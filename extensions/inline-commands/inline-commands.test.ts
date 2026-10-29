@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
@@ -39,6 +41,18 @@ const files = new Map([
     "---\ndescription: Review changes\n---\nReview $1 with ${2:-care}. Remaining: ${@:2}.",
   ],
 ]);
+
+function fixtureSkill(name: string): string {
+  const path = join(
+    mkdtempSync(join(tmpdir(), "inline-commands-")),
+    "SKILL.md",
+  );
+  writeFileSync(
+    path,
+    `---\nname: ${name}\ndescription: ${name} fixture\n---\n\n# ${name}\n`,
+  );
+  return path;
+}
 
 function command(
   name: string,
@@ -370,11 +384,7 @@ test("the extension composes skills and goal through one input transform", () =>
       "skill",
       join(import.meta.dirname, "../../skills/background-terminals/SKILL.md"),
     ),
-    command(
-      "skill:linearis",
-      "skill",
-      join(import.meta.dirname, "../../skills/linearis/SKILL.md"),
-    ),
+    command("skill:release-notes", "skill", fixtureSkill("release-notes")),
   ];
   const handlers = new Map<string, Array<(event: any, ctx: any) => any>>();
   let goalRequest: InlineGoalRequest | undefined;
@@ -403,7 +413,7 @@ test("the extension composes skills and goal through one input transform", () =>
 
   const result = input(
     {
-      text: "Use /skill:background-terminals and /skill:linearis to finish this /goal",
+      text: "Use /skill:background-terminals and /skill:release-notes to finish this /goal",
       source: "interactive",
     },
     {
@@ -413,9 +423,9 @@ test("the extension composes skills and goal through one input transform", () =>
   );
   assert.equal(result.action, "transform");
   const block = parseSkillBlock(result.text);
-  assert.equal(block?.name, "background-terminals + linearis");
+  assert.equal(block?.name, "background-terminals + release-notes");
   const compactPrompt =
-    "Use /skill:background-terminals and /skill:linearis to finish this";
+    "Use /skill:background-terminals and /skill:release-notes to finish this";
   assert.equal(block?.userMessage, compactPrompt);
   assert.equal(goalRequest?.text, compactPrompt);
   assert.deepEqual(notifications, ["Goal set from this prompt."]);

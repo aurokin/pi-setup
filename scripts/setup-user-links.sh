@@ -33,14 +33,12 @@ names=(
   themes
   node_modules
   skills/background-terminals
-  skills/linearis
 )
 targets=(
   "$repo/extensions"
   "$repo/themes"
   "$repo/node_modules"
   "$repo/skills/background-terminals"
-  "$repo/skills/linearis"
 )
 
 errors=0
