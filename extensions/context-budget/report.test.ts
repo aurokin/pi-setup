@@ -59,7 +59,7 @@ function input(overrides: Partial<BudgetInput> = {}): BudgetInput {
       },
     ],
     contextFiles: [{ path: "/repo/AGENTS.md", content: SECRET }],
-    skills: [{ name: "subagents" }, { name: "linearis" }],
+    skills: [{ name: "subagents" }, { name: "background-terminals" }],
     messages: [
       { role: "user", chars: 400 },
       { role: "assistant", chars: 1200 },

@@ -245,15 +245,15 @@ test("skills are read from the catalogue with what each costs", () => {
       "    <description>How to delegate work, at some length indeed</description>",
       "  </skill>",
       "  <skill>",
-      "    <name>linearis</name>",
-      "    <description>Linear</description>",
+      "    <name>background-terminals</name>",
+      "    <description>Terminals</description>",
       "  </skill>",
       "</available_skills>",
     ].join("\n"),
   );
   assert.deepEqual(
     skills.map((s) => s.name),
-    ["subagents", "linearis"],
+    ["subagents", "background-terminals"],
   );
   assert.ok(skills[0]!.bytes > skills[1]!.bytes);
 });
