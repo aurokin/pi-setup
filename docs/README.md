@@ -34,8 +34,6 @@ authority for exact APIs and constants.
 ## Deferred work
 
 - `docs/unbuilt.md` records ideas, rejected experiments, and open questions.
-- `docs/to-issues-pi-handoff.md` is an implementation handoff, not a shipped
-  capability.
 
 ## Historical references
 
